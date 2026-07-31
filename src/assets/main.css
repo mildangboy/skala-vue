@@ -21,6 +21,17 @@ html.dark .el-dialog {
   background: var(--surface-strong);
   backdrop-filter: var(--blur-glass);
 }
+
+/* 모바일 메뉴 서랍 — 테마 배경/여백 맞춤 */
+.el-drawer {
+  background: var(--bg-base);
+  background-image: var(--bg-gradient);
+}
+.el-drawer .el-drawer__body {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+}
 html.dark .el-empty__description p {
   color: var(--text-muted);
 }

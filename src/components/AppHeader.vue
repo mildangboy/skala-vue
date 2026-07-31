@@ -1,5 +1,7 @@
 <script setup>
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { Close, Menu as MenuIcon } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UnitToggle from './UnitToggle.vue'
 
@@ -13,6 +15,23 @@ const links = [
 ]
 
 const isActive = (name) => route.name === name || route.meta?.parent === name
+
+const drawerOpen = ref(false)
+
+// 데스크톱 폭으로 넓어지면 열려 있던 서랍을 닫아 상태가 어긋나지 않게 한다
+const desktopQuery = window.matchMedia?.('(min-width: 761px)') ?? null
+const handleWidthChange = (e) => {
+  if (e.matches) drawerOpen.value = false
+}
+
+onMounted(() => desktopQuery?.addEventListener('change', handleWidthChange))
+onBeforeUnmount(() => desktopQuery?.removeEventListener('change', handleWidthChange))
+
+// 메뉴에서 페이지를 이동하면 서랍을 닫는다
+watch(
+  () => route.fullPath,
+  () => (drawerOpen.value = false),
+)
 </script>
 
 <template>
@@ -26,6 +45,7 @@ const isActive = (name) => route.name === name || route.meta?.parent === name
         </span>
       </RouterLink>
 
+      <!-- 데스크톱 네비게이션 -->
       <nav class="nav" aria-label="주요 메뉴">
         <RouterLink
           v-for="link in links"
@@ -42,7 +62,62 @@ const isActive = (name) => route.name === name || route.meta?.parent === name
         <UnitToggle />
         <ThemeToggle />
       </div>
+
+      <!-- 모바일 햄버거 -->
+      <button
+        type="button"
+        class="hamburger"
+        :aria-expanded="drawerOpen"
+        aria-controls="mobile-menu"
+        aria-label="메뉴 열기"
+        @click="drawerOpen = true"
+      >
+        <el-icon><MenuIcon /></el-icon>
+      </button>
     </div>
+
+    <!-- 모바일 메뉴 서랍 -->
+    <el-drawer
+      id="mobile-menu"
+      v-model="drawerOpen"
+      direction="rtl"
+      size="270px"
+      :with-header="false"
+      class="mobile-menu"
+    >
+      <div class="mobile-menu__head">
+        <span class="mobile-menu__title">메뉴</span>
+        <button
+          type="button"
+          class="mobile-menu__close"
+          aria-label="메뉴 닫기"
+          @click="drawerOpen = false"
+        >
+          <el-icon><Close /></el-icon>
+        </button>
+      </div>
+
+      <nav class="mobile-menu__nav" aria-label="모바일 메뉴">
+        <RouterLink
+          v-for="link in links"
+          :key="link.label"
+          :to="link.to"
+          class="mobile-menu__link"
+          :class="{ 'is-active': isActive(link.to.name) }"
+        >
+          {{ link.label }}
+        </RouterLink>
+      </nav>
+
+      <div class="mobile-menu__section">
+        <span class="mobile-menu__label">온도 단위</span>
+        <UnitToggle />
+      </div>
+      <div class="mobile-menu__section">
+        <span class="mobile-menu__label">테마</span>
+        <ThemeToggle />
+      </div>
+    </el-drawer>
   </header>
 </template>
 
@@ -70,8 +145,8 @@ const isActive = (name) => route.name === name || route.meta?.parent === name
   gap: 9px;
   text-decoration: none;
   flex-shrink: 0;
+  margin-right: auto;
 }
-/* Mercedes 3-pointed star를 CSS로 추상 표현 */
 .brand__star {
   width: 26px;
   height: 26px;
@@ -96,7 +171,6 @@ const isActive = (name) => route.name === name || route.meta?.parent === name
 }
 .brand__star::after {
   transform: translate(-50%, 0) rotate(120deg);
-  box-shadow: 0 0 0 0 transparent;
 }
 .brand__text {
   display: flex;
@@ -119,7 +193,6 @@ const isActive = (name) => route.name === name || route.meta?.parent === name
 .nav {
   display: flex;
   gap: 4px;
-  flex: 1;
 }
 .nav__link {
   padding: 7px 13px;
@@ -128,6 +201,7 @@ const isActive = (name) => route.name === name || route.meta?.parent === name
   font-weight: 600;
   color: var(--text-muted);
   text-decoration: none;
+  white-space: nowrap;
   transition:
     background 0.2s ease,
     color 0.2s ease;
@@ -147,16 +221,109 @@ const isActive = (name) => route.name === name || route.meta?.parent === name
   flex-shrink: 0;
 }
 
-@media (max-width: 720px) {
+/* 햄버거 — 데스크톱에서는 숨김 */
+.hamburger {
+  display: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 19px;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+.hamburger:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* 서랍 내부 */
+.mobile-menu__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.mobile-menu__title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.mobile-menu__close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 17px;
+  cursor: pointer;
+}
+.mobile-menu__close:hover {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+.mobile-menu__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 20px;
+}
+.mobile-menu__link {
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+.mobile-menu__link:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+.mobile-menu__link.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.mobile-menu__section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--surface-border);
+}
+.mobile-menu__label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 760px) {
   .app-header__inner {
-    flex-wrap: wrap;
-    gap: 10px;
     padding: 10px 16px;
+    gap: 12px;
   }
-  .nav {
-    order: 3;
-    width: 100%;
-    overflow-x: auto;
+  .nav,
+  .app-header__controls {
+    display: none;
+  }
+  .hamburger {
+    display: grid;
   }
 }
 </style>
