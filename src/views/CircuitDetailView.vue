@@ -11,7 +11,7 @@ import { useF1Store } from '@/stores/f1Store'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
 import TempChart from '@/components/TempChart.vue'
-import { raceConditionScore, raceConditionLabel } from '@/utils/raceCondition'
+import { raceConditionBreakdown, raceConditionLabel, CONDITION_RULES } from '@/utils/raceCondition'
 
 const route = useRoute()
 const router = useRouter()
@@ -47,8 +47,14 @@ const chartLabels = computed(() =>
 const chartValues = computed(() => chartSlice.value.map((h) => h.temp))
 
 // 날씨 지표로 산출한 레이스 컨디션 (0~5, 0.5 단위)
-const conditionScore = computed(() => raceConditionScore(current.value, config.unit))
+const breakdown = computed(() => raceConditionBreakdown(current.value, config.unit))
+const conditionScore = computed(() => breakdown.value?.score ?? null)
 const conditionText = computed(() => raceConditionLabel(conditionScore.value))
+const conditionTab = ref('score')
+const rules = CONDITION_RULES
+
+// 감점이 적용된 항목만 추려 "이 점수가 나온 이유"로 보여준다
+const appliedFactors = computed(() => breakdown.value?.factors.filter((f) => f.delta < 0) ?? [])
 
 // 레이스 당일 예보를 뽑아 "레이스 데이 전망"으로 노출
 const raceDayForecast = computed(() => {
@@ -121,27 +127,103 @@ watch([() => route.params.circuitId, () => config.unit], load)
 
       <template v-else-if="current">
         <!-- 레이스 컨디션 지수 (날씨 지표 기반 자동 산출) -->
-        <BaseDashboardCard v-if="conditionScore !== null">
+        <BaseDashboardCard v-if="breakdown">
           <template #header>
             <span
               ><el-icon><Flag /></el-icon> 레이스 컨디션 지수</span
             >
           </template>
-          <div class="condition">
-            <el-rate
-              :model-value="conditionScore"
-              disabled
-              allow-half
-              :max="5"
-              size="large"
-              :colors="['#00a68f', '#00a68f', '#27f4d2']"
-            />
-            <div class="condition__meta">
-              <strong class="mono-num">{{ conditionScore }} / 5</strong>
-              <span>{{ conditionText }}</span>
-            </div>
-          </div>
-          <p class="condition__note">기온 · 바람 · 강수 · 습도를 종합해 산출한 값입니다.</p>
+
+          <el-tabs v-model="conditionTab" class="condition__tabs">
+            <!-- 탭 1: 현재 지수 -->
+            <el-tab-pane label="현재 지수" name="score">
+              <div class="condition">
+                <el-rate
+                  :model-value="conditionScore"
+                  disabled
+                  allow-half
+                  :max="5"
+                  size="large"
+                  :colors="['#00a68f', '#00a68f', '#27f4d2']"
+                />
+                <div class="condition__meta">
+                  <strong class="mono-num">{{ conditionScore }} / 5</strong>
+                  <span>{{ conditionText }}</span>
+                </div>
+              </div>
+
+              <!-- 이 점수가 나온 이유 -->
+              <div class="condition__why">
+                <template v-if="appliedFactors.length">
+                  <p class="condition__why-title">감점 요인</p>
+                  <ul class="condition__why-list">
+                    <li v-for="f in appliedFactors" :key="f.key">
+                      <span class="condition__why-label">{{ f.label }}</span>
+                      <span class="condition__why-reading">{{ f.reading }}</span>
+                      <span class="condition__why-delta mono-num">{{ f.delta.toFixed(1) }}</span>
+                    </li>
+                  </ul>
+                </template>
+                <p v-else class="condition__perfect">
+                  감점 요인이 없습니다. 모든 지표가 쾌적 구간입니다.
+                </p>
+              </div>
+            </el-tab-pane>
+
+            <!-- 탭 2: 산출 방식 -->
+            <el-tab-pane label="산출 방식" name="method">
+              <p class="condition__intro">
+                기본 <strong>5점</strong>에서 출발해 아래 네 가지 지표가 이상 범위를 벗어난 만큼
+                감점합니다. 결과는 0.5점 단위로 반올림합니다.
+              </p>
+
+              <!-- 현재 날씨에 실제로 적용된 계산 과정 -->
+              <div class="calc">
+                <div class="calc__row calc__row--base">
+                  <span>기본 점수</span>
+                  <strong class="mono-num">5.0</strong>
+                </div>
+                <div
+                  v-for="f in breakdown.factors"
+                  :key="f.key"
+                  class="calc__row"
+                  :class="{ 'is-zero': f.delta === 0 }"
+                >
+                  <span>{{ f.label }}</span>
+                  <em>{{ f.reading }}</em>
+                  <strong class="mono-num">{{ f.delta === 0 ? '—' : f.delta.toFixed(2) }}</strong>
+                </div>
+                <div class="calc__row calc__row--total">
+                  <span>최종 점수</span>
+                  <em>0.5 단위 반올림</em>
+                  <strong class="mono-num">{{ conditionScore }}</strong>
+                </div>
+              </div>
+
+              <!-- 기준표 -->
+              <el-table :data="rules" class="condition__table" size="small">
+                <el-table-column prop="label" label="지표" width="110" />
+                <el-table-column prop="ideal" label="이상 범위" width="130" />
+                <el-table-column prop="penalty" label="감점 규칙" min-width="180" />
+                <el-table-column prop="max" label="최대" width="70" align="center">
+                  <template #default="{ row }">
+                    <span class="mono-num">−{{ row.max }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <ul class="condition__notes">
+                <li v-for="r in rules" :key="r.key">
+                  <strong>{{ r.label }}</strong> {{ r.note }}
+                </li>
+              </ul>
+
+              <p class="condition__disclaimer">
+                FIA 공식 지표가 아니라, 공개된 날씨 데이터로 관전 여건을 가늠해보기 위해 정한 자체
+                기준입니다.
+              </p>
+            </el-tab-pane>
+          </el-tabs>
         </BaseDashboardCard>
 
         <!-- 레이스 데이 전망 -->
@@ -287,10 +369,143 @@ watch([() => route.params.circuitId, () => config.unit], load)
   font-size: 13px;
   color: var(--text-secondary);
 }
-.condition__note {
-  margin: 12px 0 0;
-  font-size: 12px;
+.condition__tabs :deep(.el-tabs__item) {
+  font-weight: 600;
   color: var(--text-muted);
+}
+.condition__tabs :deep(.el-tabs__item.is-active) {
+  color: var(--accent);
+}
+.condition__tabs :deep(.el-tabs__active-bar) {
+  background-color: var(--accent);
+}
+.condition__tabs :deep(.el-tabs__nav-wrap::after) {
+  background-color: var(--surface-border);
+}
+
+/* 감점 요인 */
+.condition__why {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--surface-border);
+}
+.condition__why-title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.condition__why-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.condition__why-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.condition__why-label {
+  min-width: 78px;
+  font-weight: 600;
+}
+.condition__why-reading {
+  flex: 1;
+  color: var(--text-muted);
+}
+.condition__why-delta {
+  font-weight: 700;
+  color: var(--el-color-danger);
+}
+.condition__perfect {
+  margin: 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+/* 산출 방식 */
+.condition__intro {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.calc {
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.calc__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.calc__row:last-child {
+  border-bottom: none;
+}
+.calc__row span {
+  min-width: 78px;
+  font-weight: 600;
+}
+.calc__row em {
+  flex: 1;
+  font-style: normal;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.calc__row strong {
+  font-weight: 700;
+}
+.calc__row.is-zero strong {
+  color: var(--text-muted);
+}
+.calc__row--base {
+  background: var(--accent-soft);
+}
+.calc__row--total {
+  background: var(--accent-soft);
+  font-size: 14px;
+}
+.calc__row--total strong {
+  color: var(--accent);
+  font-size: 16px;
+}
+.condition__table {
+  margin-bottom: 14px;
+}
+.condition__notes {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.condition__notes li {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  padding-left: 11px;
+  border-left: 2px solid var(--surface-border);
+}
+.condition__notes strong {
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+.condition__disclaimer {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.8;
 }
 .chart-range {
   display: flex;
