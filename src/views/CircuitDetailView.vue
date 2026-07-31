@@ -11,7 +11,14 @@ import { useF1Store } from '@/stores/f1Store'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
 import TempChart from '@/components/TempChart.vue'
-import { raceConditionBreakdown, raceConditionLabel, CONDITION_RULES } from '@/utils/raceCondition'
+import {
+  raceConditionBreakdown,
+  raceConditionLabel,
+  conditionGrade,
+  conditionColor,
+  CONDITION_RULES,
+  CONDITION_GRADES,
+} from '@/utils/raceCondition'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,6 +59,9 @@ const conditionScore = computed(() => breakdown.value?.score ?? null)
 const conditionText = computed(() => raceConditionLabel(conditionScore.value))
 const conditionTab = ref('score')
 const rules = CONDITION_RULES
+const grades = CONDITION_GRADES
+const grade = computed(() => conditionGrade(conditionScore.value))
+const scoreColor = computed(() => conditionColor(conditionScore.value))
 
 // 감점이 적용된 항목만 추려 "이 점수가 나온 이유"로 보여준다
 const appliedFactors = computed(() => breakdown.value?.factors.filter((f) => f.delta < 0) ?? [])
@@ -137,20 +147,28 @@ watch([() => route.params.circuitId, () => config.unit], load)
           <el-tabs v-model="conditionTab" class="condition__tabs">
             <!-- 탭 1: 현재 지수 -->
             <el-tab-pane label="현재 지수" name="score">
-              <div class="condition">
-                <el-rate
-                  :model-value="conditionScore"
-                  disabled
-                  allow-half
-                  :max="5"
-                  size="large"
-                  :colors="['#00a68f', '#00a68f', '#27f4d2']"
-                />
-                <div class="condition__meta">
-                  <strong class="mono-num">{{ conditionScore }} / 5</strong>
-                  <span>{{ conditionText }}</span>
+              <div class="score">
+                <div class="score__value">
+                  <strong class="temp-display" :style="{ color: scoreColor }">{{
+                    conditionScore
+                  }}</strong>
+                  <span>/ 100</span>
+                </div>
+                <div class="score__grade">
+                  <span class="score__badge" :style="{ background: scoreColor }">{{
+                    grade.grade
+                  }}</span>
+                  <span class="score__label">{{ conditionText }}</span>
                 </div>
               </div>
+
+              <el-progress
+                :percentage="conditionScore"
+                :stroke-width="10"
+                :show-text="false"
+                :color="scoreColor"
+                class="score__bar"
+              />
 
               <!-- 이 점수가 나온 이유 -->
               <div class="condition__why">
@@ -173,15 +191,15 @@ watch([() => route.params.circuitId, () => config.unit], load)
             <!-- 탭 2: 산출 방식 -->
             <el-tab-pane label="산출 방식" name="method">
               <p class="condition__intro">
-                기본 <strong>5점</strong>에서 출발해 아래 네 가지 지표가 이상 범위를 벗어난 만큼
-                감점합니다. 결과는 0.5점 단위로 반올림합니다.
+                기본 <strong>100점</strong>에서 출발해 아래 네 가지 지표가 이상 범위를 벗어난 만큼
+                감점합니다. 벗어난 정도에 비례해 연속적으로 깎이며, 결과는 정수로 반올림합니다.
               </p>
 
               <!-- 현재 날씨에 실제로 적용된 계산 과정 -->
               <div class="calc">
                 <div class="calc__row calc__row--base">
                   <span>기본 점수</span>
-                  <strong class="mono-num">5.0</strong>
+                  <strong class="mono-num">100</strong>
                 </div>
                 <div
                   v-for="f in breakdown.factors"
@@ -195,8 +213,10 @@ watch([() => route.params.circuitId, () => config.unit], load)
                 </div>
                 <div class="calc__row calc__row--total">
                   <span>최종 점수</span>
-                  <em>0.5 단위 반올림</em>
-                  <strong class="mono-num">{{ conditionScore }}</strong>
+                  <em>정수 반올림 · 0~100 범위</em>
+                  <strong class="mono-num" :style="{ color: scoreColor }">
+                    {{ conditionScore }}
+                  </strong>
                 </div>
               </div>
 
@@ -211,6 +231,15 @@ watch([() => route.params.circuitId, () => config.unit], load)
                   </template>
                 </el-table-column>
               </el-table>
+
+              <p class="condition__subtitle">등급 구간</p>
+              <div class="grades">
+                <div v-for="g in grades" :key="g.grade" class="grades__item">
+                  <span class="grades__badge">{{ g.grade }}</span>
+                  <strong>{{ g.min }}점 이상</strong>
+                  <em>{{ g.label }} · {{ g.desc }}</em>
+                </div>
+              </div>
 
               <ul class="condition__notes">
                 <li v-for="r in rules" :key="r.key">
@@ -351,23 +380,49 @@ watch([() => route.params.circuitId, () => config.unit], load)
   font-size: 14px;
   margin-top: 2px;
 }
-.condition {
+.score {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  margin-bottom: 12px;
 }
-.condition__meta {
+.score__value {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 7px;
 }
-.condition__meta strong {
-  font-size: 20px;
-  font-weight: 700;
+.score__value strong {
+  font-size: clamp(46px, 8vw, 64px);
+  line-height: 1;
 }
-.condition__meta span {
+.score__value span {
+  font-size: 15px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.score__grade {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.score__badge {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: #04120f;
+  font-weight: 800;
+  font-size: 15px;
+}
+.score__label {
   font-size: 13px;
   color: var(--text-secondary);
+}
+.score__bar :deep(.el-progress-bar__outer) {
+  background: var(--surface-border);
 }
 .condition__tabs :deep(.el-tabs__item) {
   font-weight: 600;
@@ -481,6 +536,50 @@ watch([() => route.params.circuitId, () => config.unit], load)
 }
 .condition__table {
   margin-bottom: 14px;
+}
+.condition__subtitle {
+  margin: 0 0 9px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.grades {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+.grades__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  font-size: 13px;
+}
+.grades__badge {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.grades__item strong {
+  min-width: 74px;
+  font-weight: 600;
+}
+.grades__item em {
+  font-style: normal;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 .condition__notes {
   list-style: none;

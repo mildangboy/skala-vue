@@ -168,11 +168,15 @@ const confirmRemove = async (plan) => {
           </el-form-item>
 
           <el-form-item label="기대 지수">
-            <el-rate
-              v-model="form.excitement"
-              :max="5"
-              :colors="['#00a68f', '#00a68f', '#27f4d2']"
-            />
+            <div class="plan-form__rate">
+              <el-rate
+                v-model="form.excitement"
+                allow-half
+                :max="5"
+                :colors="['#00a68f', '#00a68f', '#27f4d2']"
+              />
+              <span class="plan-form__hint mono-num">{{ form.excitement.toFixed(1) }} / 5</span>
+            </div>
           </el-form-item>
         </div>
 
@@ -189,7 +193,8 @@ const confirmRemove = async (plan) => {
         <div class="plan-summary">
           <span class="plan-summary__dot" />
           <template v-if="selectedRace">
-            {{ selectedRace.name }} · 인원 {{ form.people }}명 · 기대 {{ form.excitement }}점
+            {{ selectedRace.name }} · 인원 {{ form.people }}명 · 기대
+            {{ form.excitement.toFixed(1) }}점
             <template v-if="selectedWeather">
               · 현재 {{ iconEmoji(selectedWeather.icon) }}
               {{ formatTemp(selectedWeather.temp, config.unit) }}
@@ -239,7 +244,9 @@ const confirmRemove = async (plan) => {
               <el-tag v-if="plan.pending" size="small" type="info">저장 중…</el-tag>
             </div>
             <p class="plan-item__meta">
-              {{ plan.email }} · {{ plan.people }}명 · 기대 {{ plan.excitement }}점
+              {{ plan.email }} · {{ plan.people }}명 · 기대
+              <span class="mono-num">{{ Number(plan.excitement).toFixed(1) }}</span
+              >점
             </p>
             <p v-if="plan.memo" class="plan-item__memo">{{ plan.memo }}</p>
           </div>
@@ -284,6 +291,11 @@ const confirmRemove = async (plan) => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0 16px;
+}
+.plan-form__rate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .plan-form__hint {
   margin-left: 10px;
