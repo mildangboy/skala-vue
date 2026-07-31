@@ -56,6 +56,31 @@ SK㈜ AX SKALA _Full-stack Engineering · Frontend Framework(Vue.js)_ 과정의 
 
 ---
 
+## 개발 환경
+
+| 도구    | 버전                                            |
+| ------- | ----------------------------------------------- |
+| Node.js | **24.16.0** (`.nvmrc` / `.node-version`에 고정) |
+| npm     | **11.13.0** (`packageManager` 필드에 고정)      |
+
+```bash
+# nvm 사용 시 — .nvmrc를 읽어 자동 전환
+nvm install && nvm use
+
+# fnm 사용 시
+fnm use --install-if-missing
+
+# npm 버전 맞추기
+npm install -g npm@11.13.0
+
+# 확인
+node --version   # v24.16.0
+npm --version    # 11.13.0
+```
+
+`engines` 필드에 `node >=24.16.0 <25`, `npm >=11.13.0`을 명시했습니다.
+버전이 맞지 않으면 설치 시 경고가 표시됩니다(강제 차단하려면 `.npmrc`에 `engine-strict=true` 추가).
+
 ## 시작하기
 
 ```bash
