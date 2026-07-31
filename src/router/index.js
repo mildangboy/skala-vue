@@ -44,6 +44,12 @@ const routes = [
     },
   },
   {
+    path: '/plan',
+    name: 'race-plan',
+    component: () => import('@/views/RacePlanView.vue'),
+    meta: { title: '관전 플랜' },
+  },
+  {
     path: '/about',
     name: 'weather-about',
     component: () => import('@/views/WeatherAboutView.vue'),

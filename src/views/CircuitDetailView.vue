@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Sunny, Odometer, Watch } from '@element-plus/icons-vue'
+import { ArrowLeft, Sunny, Odometer, Watch, Flag } from '@element-plus/icons-vue'
 import { fetchCurrentWeatherByCoords, fetchForecastByCoords } from '@/api/weather'
 import { formatTemp, formatHour, formatWeekday } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
@@ -11,6 +11,7 @@ import { useF1Store } from '@/stores/f1Store'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
 import TempChart from '@/components/TempChart.vue'
+import { raceConditionScore, raceConditionLabel } from '@/utils/raceCondition'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,7 @@ const current = ref(null)
 const forecast = ref(null)
 const loading = ref(false)
 const error = ref('')
+const chartHours = ref(8) // 차트에 표시할 예보 구간 (el-input-number로 조절)
 
 const race = computed(() => f1.findRace(route.params.circuitId))
 
@@ -37,10 +39,16 @@ const raceTimeLabel = computed(() =>
     : '',
 )
 
+// 선택한 구간만큼 잘라서 차트에 전달
+const chartSlice = computed(() => (forecast.value?.hourly ?? []).slice(0, chartHours.value))
 const chartLabels = computed(() =>
-  (forecast.value?.hourly ?? []).map((h) => formatHour(h.dt, forecast.value.timezone)),
+  chartSlice.value.map((h) => formatHour(h.dt, forecast.value.timezone)),
 )
-const chartValues = computed(() => (forecast.value?.hourly ?? []).map((h) => h.temp))
+const chartValues = computed(() => chartSlice.value.map((h) => h.temp))
+
+// 날씨 지표로 산출한 레이스 컨디션 (0~5, 0.5 단위)
+const conditionScore = computed(() => raceConditionScore(current.value, config.unit))
+const conditionText = computed(() => raceConditionLabel(conditionScore.value))
 
 // 레이스 당일 예보를 뽑아 "레이스 데이 전망"으로 노출
 const raceDayForecast = computed(() => {
@@ -112,6 +120,30 @@ watch([() => route.params.circuitId, () => config.unit], load)
       <SkeletonCard v-if="loading" height="180px" :lines="3" />
 
       <template v-else-if="current">
+        <!-- 레이스 컨디션 지수 (날씨 지표 기반 자동 산출) -->
+        <BaseDashboardCard v-if="conditionScore !== null">
+          <template #header>
+            <span
+              ><el-icon><Flag /></el-icon> 레이스 컨디션 지수</span
+            >
+          </template>
+          <div class="condition">
+            <el-rate
+              :model-value="conditionScore"
+              disabled
+              allow-half
+              :max="5"
+              size="large"
+              :colors="['#00a68f', '#00a68f', '#27f4d2']"
+            />
+            <div class="condition__meta">
+              <strong class="mono-num">{{ conditionScore }} / 5</strong>
+              <span>{{ conditionText }}</span>
+            </div>
+          </div>
+          <p class="condition__note">기온 · 바람 · 강수 · 습도를 종합해 산출한 값입니다.</p>
+        </BaseDashboardCard>
+
         <!-- 레이스 데이 전망 -->
         <BaseDashboardCard v-if="raceDayForecast" tone="accent">
           <template #header><span>레이스 데이 전망</span></template>
@@ -236,6 +268,46 @@ watch([() => route.params.circuitId, () => config.unit], load)
   text-transform: capitalize;
   font-size: 14px;
   margin-top: 2px;
+}
+.condition {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.condition__meta {
+  display: flex;
+  flex-direction: column;
+}
+.condition__meta strong {
+  font-size: 20px;
+  font-weight: 700;
+}
+.condition__meta span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.condition__note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.chart-range {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.chart-range label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.chart-range em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 .race-day {
   display: flex;

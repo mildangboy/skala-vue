@@ -6,7 +6,16 @@
  */
 export const F1_SEASON = 2026
 
-export const F1_CALENDAR_2026 = [
+// Object.freeze로 깊은 동결 — 캘린더는 앱 전역에서 공유되는 상수이므로
+// 어느 화면에서든 실수로 변형되면 다른 화면까지 오염된다.
+const deepFreeze = (obj) => {
+  Object.values(obj).forEach((v) => {
+    if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v)
+  })
+  return Object.freeze(obj)
+}
+
+export const F1_CALENDAR_2026 = deepFreeze([
   {
     round: 1,
     name: '호주 그랑프리',
@@ -337,7 +346,7 @@ export const F1_CALENDAR_2026 = [
     time: '13:00:00Z',
     sprint: false,
   },
-]
+])
 
 // ISO 8601 UTC 문자열로 결합 (예: '2026-08-23T13:00:00Z')
 export const raceStartISO = (race) => `${race.date}T${race.time}`

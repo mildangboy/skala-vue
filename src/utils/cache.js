@@ -13,13 +13,16 @@ export const cacheSet = (key, value) => {
   }
 }
 
-/** TTL 이내면 { value, stale: false }, 만료됐어도 값이 있으면 stale: true로 반환 */
+/**
+ * TTL 이내면 { value, stale: false }, 만료됐어도 값이 있으면 stale: true로 반환.
+ * 반환 객체는 structuredClone으로 복제해 호출부가 캐시 원본을 변형할 수 없게 한다.
+ */
 export const cacheGet = (key, ttl = DEFAULT_TTL) => {
   try {
     const raw = localStorage.getItem(PREFIX + key)
     if (!raw) return null
     const { value, at } = JSON.parse(raw)
-    return { value, stale: Date.now() - at > ttl, at }
+    return { value: structuredClone(value), stale: Date.now() - at > ttl, at }
   } catch {
     return null
   }

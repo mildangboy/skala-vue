@@ -9,6 +9,7 @@ import F1CalendarView from '@/views/F1CalendarView.vue'
 import CircuitDetailView from '@/views/CircuitDetailView.vue'
 import WeatherDetailView from '@/views/WeatherDetailView.vue'
 import WeatherAboutView from '@/views/WeatherAboutView.vue'
+import RacePlanView from '@/views/RacePlanView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 
 const VIEW_MAP = {
@@ -17,6 +18,7 @@ const VIEW_MAP = {
   CircuitDetailView,
   WeatherDetailView,
   WeatherAboutView,
+  RacePlanView,
   NotFoundView,
 }
 
@@ -30,6 +32,7 @@ const views = [
   ['CircuitDetailView', '/f1/zandvoort', {}],
   ['WeatherDetailView', '/city/Seoul', {}],
   ['WeatherAboutView', '/about', {}],
+  ['RacePlanView', '/plan', {}],
   ['NotFoundView', '/nope', {}],
 ]
 
@@ -37,6 +40,7 @@ let failed = 0
 for (const [name, path] of views) {
   try {
     const ViewComp = VIEW_MAP[name]
+    if (!ViewComp) throw new Error(`VIEW_MAP에 ${name}이(가) 등록되지 않았습니다`)
     const router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -45,6 +49,7 @@ for (const [name, path] of views) {
         { path: '/f1/:circuitId', name: 'circuit-detail', component: ViewComp },
         { path: '/city/:city', name: 'weather-detail', component: ViewComp },
         { path: '/about', name: 'weather-about', component: ViewComp },
+        { path: '/plan', name: 'race-plan', component: ViewComp },
         { path: '/:pathMatch(.*)*', name: 'not-found', component: ViewComp },
       ],
     })

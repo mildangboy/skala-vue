@@ -8,6 +8,7 @@ const route = useRoute()
 const links = [
   { to: { name: 'weather-home' }, label: '홈' },
   { to: { name: 'f1-calendar' }, label: 'F1 캘린더' },
+  { to: { name: 'race-plan' }, label: '관전 플랜' },
   { to: { name: 'weather-about' }, label: '소개' },
 ]
 

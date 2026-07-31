@@ -22,14 +22,16 @@ const current = ref(null)
 const forecast = ref(null)
 const loading = ref(false)
 const error = ref('')
+const chartHours = ref(8) // 차트 표시 구간
 
 const cityParam = computed(() => route.params.city)
 const isFav = computed(() => favorites.value.includes(current.value?.city))
 
+const chartSlice = computed(() => (forecast.value?.hourly ?? []).slice(0, chartHours.value))
 const chartLabels = computed(() =>
-  (forecast.value?.hourly ?? []).map((h) => formatHour(h.dt, forecast.value.timezone)),
+  chartSlice.value.map((h) => formatHour(h.dt, forecast.value.timezone)),
 )
-const chartValues = computed(() => (forecast.value?.hourly ?? []).map((h) => h.temp))
+const chartValues = computed(() => chartSlice.value.map((h) => h.temp))
 
 const load = async () => {
   loading.value = true
@@ -103,6 +105,19 @@ watch([cityParam, () => config.unit], load)
           <span
             ><el-icon><Odometer /></el-icon> 기온 추이</span
           >
+          <span class="chart-range">
+            <label for="city-hours">표시 구간</label>
+            <el-input-number
+              id="city-hours"
+              v-model="chartHours"
+              :min="3"
+              :max="Math.max(3, forecast?.hourly?.length ?? 3)"
+              :step="1"
+              size="small"
+              controls-position="right"
+            />
+            <em>× 3시간</em>
+          </span>
         </template>
         <TempChart :labels="chartLabels" :values="chartValues" :unit-symbol="config.unitSymbol" />
       </BaseDashboardCard>
@@ -219,6 +234,20 @@ watch([cityParam, () => config.unit], load)
 .hourly__temp {
   font-size: 15px;
   font-weight: 600;
+}
+.chart-range {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+.chart-range label,
+.chart-range em {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: normal;
 }
 .metrics {
   display: grid;

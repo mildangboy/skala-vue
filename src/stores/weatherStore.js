@@ -1,6 +1,11 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchCurrentWeatherByCity, fetchCurrentWeatherByCoords } from '@/api/weather'
+import {
+  fetchCurrentWeatherByCity,
+  fetchCurrentWeatherByCoords,
+  fetchForecastByCoords,
+  reverseGeocode,
+} from '@/api/weather'
 import { getCurrentPosition } from '@/utils/geolocation'
 import { withCache } from '@/utils/cache'
 
@@ -24,6 +29,7 @@ export const useWeatherStore = defineStore('weather', () => {
   const myLocation = ref(null) // Geolocation 기반 현재 위치 날씨
   const loading = ref(false)
   const locating = ref(false)
+  const locateStep = ref('') // 파이프라인 진행 단계 표시용
   const error = ref('')
   const usingCache = ref(false) // 오프라인 등으로 캐시 데이터를 보여주는 중인지
 
@@ -88,15 +94,42 @@ export const useWeatherStore = defineStore('weather', () => {
     }
   }
 
-  /** Geolocation 권한을 받아 현재 위치 날씨를 조회 */
+  /**
+   * 내 위치 날씨 — 각 단계가 이전 결과에 의존하는 순차 비동기 파이프라인.
+   *   좌표 확보 → 역지오코딩(지역명) → 현재 날씨 → 예보
+   * 앞 단계가 실패하면 뒤 단계는 실행되지 않으며, 어느 단계에서 끊겼는지
+   * locateStep에 남겨 사용자에게 진행 상황을 보여준다.
+   */
   const loadMyLocation = async (unit) => {
     locating.value = true
+    locateStep.value = '위치 확인 중…'
     try {
+      // 1) 브라우저 권한 → 좌표
       const { lat, lon } = await getCurrentPosition()
-      myLocation.value = await fetchCurrentWeatherByCoords(lat, lon, unit)
+
+      // 2) 좌표 → 지역명 (실패해도 치명적이지 않으므로 개별 처리)
+      locateStep.value = '지역 확인 중…'
+      const place = await reverseGeocode(lat, lon).catch(() => null)
+
+      // 3) 좌표 → 현재 날씨
+      locateStep.value = '날씨 조회 중…'
+      const current = await fetchCurrentWeatherByCoords(lat, lon, unit)
+
+      // 4) 좌표 → 예보 (앞 단계가 성공한 경우에만 도달)
+      locateStep.value = '예보 조회 중…'
+      const forecast = await fetchForecastByCoords(lat, lon, unit).catch(() => null)
+
+      myLocation.value = {
+        ...current,
+        city: place?.name ?? current.city,
+        country: place?.country ?? current.country,
+        forecast,
+        coords: { lat, lon },
+      }
       return myLocation.value
     } finally {
       locating.value = false
+      locateStep.value = ''
     }
   }
 
@@ -107,6 +140,7 @@ export const useWeatherStore = defineStore('weather', () => {
     myLocation,
     loading,
     locating,
+    locateStep,
     error,
     usingCache,
     isFavorite,

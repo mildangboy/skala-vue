@@ -48,3 +48,29 @@ export const searchCities = async (query) => {
     label: [item.name, item.state, item.country].filter(Boolean).join(', '),
   }))
 }
+
+// 역지오코딩: 좌표 -> 지역명 (내 위치 파이프라인에서 사용)
+export const reverseGeocode = async (lat, lon) => {
+  const { data } = await client.get('/geo/1.0/reverse', {
+    params: { lat, lon, limit: 1 },
+  })
+  const [place] = data ?? []
+  return place
+    ? {
+        name: place.local_names?.ko ?? place.name,
+        country: place.country,
+        state: place.state ?? '',
+      }
+    : null
+}
+
+/**
+ * 주어진 키로 실제 API를 호출해 유효성을 확인한다.
+ * 폼의 비동기 validator에서 사용하며, 저장 전에 잘못된 키를 걸러낸다.
+ */
+export const verifyApiKey = async (key) => {
+  const { data } = await client.get('/data/2.5/weather', {
+    params: { q: 'London', units: 'metric', appid: key },
+  })
+  return Boolean(data?.name)
+}
