@@ -5,7 +5,11 @@ const STORAGE_KEY = 'skala-vue:theme'
 const MODES = ['system', 'light', 'dark']
 
 // OS 다크모드 설정을 구독하는 MediaQueryList
-const media = window.matchMedia('(prefers-color-scheme: dark)')
+// matchMedia를 지원하지 않는 환경(구형 브라우저, 테스트 러너)에서도 앱이 죽지 않도록 폴백을 둔다
+const media =
+  typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-color-scheme: dark)')
+    : { matches: false, addEventListener() {}, removeEventListener() {} }
 
 export const useThemeStore = defineStore('theme', () => {
   // 'system' | 'light' | 'dark'

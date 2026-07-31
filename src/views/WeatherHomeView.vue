@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import RaceHero from '@/components/RaceHero.vue'
 import WeatherParent from '@/components/WeatherParent.vue'
+import ApiKeyGate from '@/components/ApiKeyGate.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
 import { useConfigStore } from '@/stores/configStore'
 import { useF1Store } from '@/stores/f1Store'
@@ -31,10 +32,18 @@ onMounted(async () => {
 onBeforeUnmount(() => clearInterval(timer))
 
 watch(() => config.unit, loadHeroWeather)
+
+// API 키 입력 직후 전체 데이터를 다시 불러온다
+const reloadAll = () => {
+  loadHeroWeather()
+  window.dispatchEvent(new CustomEvent('skala:reload-weather'))
+}
 </script>
 
 <template>
   <div class="home">
+    <ApiKeyGate @saved="reloadAll" />
+
     <SkeletonCard v-if="loading && !nextRace" height="260px" :lines="4" />
     <RaceHero
       v-else

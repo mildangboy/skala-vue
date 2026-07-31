@@ -12,7 +12,8 @@
     "lint:eslint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
     "deploy": "bash scripts/deploy.sh",
-    "test:smoke": "vite build --config vite.smoke.config.js --logLevel error && node smoke-dist/ssr-smoke.js"
+    "test:smoke": "vite build --config vite.smoke.config.js --logLevel error && node smoke-dist/ssr-smoke.js",
+    "build:standalone": "vite build --config vite.standalone.config.js"
   },
   "dependencies": {
     "axios": "^1.7.9",

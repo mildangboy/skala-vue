@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import { F1_CALENDAR_2026 } from '@/data/f1Calendar2026'
 
 const BASE_TITLE = 'SKALA Weather'
@@ -58,8 +58,14 @@ const routes = [
   },
 ]
 
+// 단일 HTML 데모(file:// 실행)에서는 서버 없이 동작하도록 해시 히스토리를 사용한다
+const history =
+  import.meta.env.VITE_STANDALONE === 'true'
+    ? createWebHashHistory()
+    : createWebHistory(import.meta.env.BASE_URL)
+
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history,
   routes,
   scrollBehavior(to, from, savedPosition) {
     // 뒤로가기 시 이전 스크롤 위치 복원

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
@@ -20,7 +20,12 @@ const { isOnline } = useOnlineStatus()
 
 const load = () => weather.loadDashboard(config.unit)
 
-onMounted(load)
+onMounted(() => {
+  load()
+  window.addEventListener('skala:reload-weather', load)
+})
+onBeforeUnmount(() => window.removeEventListener('skala:reload-weather', load))
+
 // 단위가 바뀌면 대시보드를 다시 조회
 watch(() => config.unit, load)
 
