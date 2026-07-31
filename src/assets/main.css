@@ -6,6 +6,31 @@
 
 h1,
 h2,
-h3 {
-  color: var(--text-main);
+h3,
+h4 {
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Element Plus 다크모드 보정 */
+html.dark .el-card,
+html.dark .el-table,
+html.dark .el-table tr,
+html.dark .el-table th.el-table__cell {
+  background-color: transparent;
+  color: var(--text-primary);
+}
+html.dark .el-table__inner-wrapper::before {
+  background-color: var(--surface-border);
+}
+html.dark .el-dialog {
+  background: var(--surface-strong);
+  backdrop-filter: var(--blur-glass);
+}
+html.dark .el-empty__description p {
+  color: var(--text-muted);
 }

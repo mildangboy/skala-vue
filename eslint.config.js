@@ -11,12 +11,23 @@ export default defineConfig([
     files: ['**/*.{vue,js,mjs,jsx}'],
   },
 
-  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
+  globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**', '**/smoke-dist/**']),
 
   {
     languageOptions: {
       globals: {
         ...globals.browser,
+      },
+    },
+  },
+
+  // 테스트/설정 스크립트는 Node 환경에서 실행된다
+  {
+    name: 'app/node-scripts',
+    files: ['tests/**/*.mjs', '*.config.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
       },
     },
   },

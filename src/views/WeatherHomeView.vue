@@ -1,29 +1,76 @@
 <script setup>
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import RaceHero from '@/components/RaceHero.vue'
 import WeatherParent from '@/components/WeatherParent.vue'
+import SkeletonCard from '@/components/SkeletonCard.vue'
+import { useConfigStore } from '@/stores/configStore'
+import { useF1Store } from '@/stores/f1Store'
+
+const config = useConfigStore()
+const f1 = useF1Store()
+const { nextRace, countdown, circuitWeather, loading } = storeToRefs(f1)
+
+let timer = null
+
+const nextRaceWeather = computed(() =>
+  nextRace.value ? (circuitWeather.value[nextRace.value.circuitId] ?? null) : null,
+)
+
+const loadHeroWeather = () => {
+  if (nextRace.value) f1.loadCircuitWeather([nextRace.value], config.unit)
+}
+
+onMounted(async () => {
+  await f1.loadCalendar()
+  loadHeroWeather()
+  // 카운트다운 1초 갱신
+  timer = setInterval(() => f1.tick(), 1000)
+})
+
+onBeforeUnmount(() => clearInterval(timer))
+
+watch(() => config.unit, loadHeroWeather)
 </script>
 
 <template>
-  <div class="home-view">
-    <section class="home-view__intro">
-      <h1>오늘의 날씨를 한눈에</h1>
-      <p>도시를 검색하고 즐겨찾기에 추가하면 대시보드에 고정됩니다.</p>
+  <div class="home">
+    <SkeletonCard v-if="loading && !nextRace" height="260px" :lines="4" />
+    <RaceHero
+      v-else
+      :race="nextRace"
+      :weather="nextRaceWeather"
+      :countdown="countdown"
+      :unit="config.unit"
+    />
+
+    <section class="home__cities">
+      <header class="home__section-head">
+        <h2>내 도시</h2>
+        <p>검색해서 추가하고, 별을 눌러 즐겨찾기에 고정하세요.</p>
+      </header>
+      <WeatherParent />
     </section>
-    <WeatherParent />
   </div>
 </template>
 
 <style scoped>
-.home-view {
+.home {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 32px;
 }
-.home-view__intro h1 {
-  font-size: 28px;
-  margin: 0 0 6px;
+.home__section-head {
+  margin-bottom: 16px;
 }
-.home-view__intro p {
+.home__section-head h2 {
   margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.home__section-head p {
+  margin: 4px 0 0;
+  font-size: 13px;
   color: var(--text-muted);
 }
 </style>

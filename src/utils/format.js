@@ -19,7 +19,11 @@ export const formatWeekday = (unixSeconds, timezoneOffsetSeconds = 0) =>
   formatDate(unixSeconds, timezoneOffsetSeconds, { weekday: 'short' })
 
 export const formatHour = (unixSeconds, timezoneOffsetSeconds = 0) =>
-  formatDate(unixSeconds, timezoneOffsetSeconds, { hour: '2-digit', minute: '2-digit', hour12: false })
+  formatDate(unixSeconds, timezoneOffsetSeconds, {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
 
 // 응답 데이터 중 필요한 값만 뽑아 화면 친화적 구조로 변환 (구조 분해 할당 + optional chaining + nullish coalescing)
 export const normalizeCurrentWeather = (raw) => {
@@ -48,7 +52,11 @@ export const normalizeForecast = (raw) => {
   const timezone = raw?.city?.timezone ?? 0
   // 3시간 간격 데이터를 일자별 대표값(정오 근접)으로 그룹핑
   const byDay = list.reduce((acc, item) => {
-    const dayKey = formatDate(item.dt, timezone, { year: 'numeric', month: '2-digit', day: '2-digit' })
+    const dayKey = formatDate(item.dt, timezone, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
     if (!acc[dayKey]) acc[dayKey] = []
     acc[dayKey].push(item)
     return acc
@@ -56,7 +64,8 @@ export const normalizeForecast = (raw) => {
 
   const daily = Object.entries(byDay).map(([day, items]) => {
     const noonItem =
-      items.find((i) => formatHour(i.dt, timezone).startsWith('12')) ?? items[Math.floor(items.length / 2)]
+      items.find((i) => formatHour(i.dt, timezone).startsWith('12')) ??
+      items[Math.floor(items.length / 2)]
     const temps = items.map((i) => i.main?.temp).filter((t) => typeof t === 'number')
     return {
       day,

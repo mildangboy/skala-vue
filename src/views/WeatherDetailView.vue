@@ -2,13 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { ArrowLeft, StarFilled, Star } from '@element-plus/icons-vue'
+import { ArrowLeft, Star, StarFilled, Odometer } from '@element-plus/icons-vue'
 import { fetchCurrentWeatherByCity, fetchForecastByCity } from '@/api/weather'
-import { formatTemp, formatWeekday, formatHour } from '@/utils/format'
+import { formatTemp, formatHour, formatWeekday } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { useConfigStore } from '@/stores/configStore'
 import { useWeatherStore } from '@/stores/weatherStore'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
+import SkeletonCard from '@/components/SkeletonCard.vue'
+import TempChart from '@/components/TempChart.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,16 +26,21 @@ const error = ref('')
 const cityParam = computed(() => route.params.city)
 const isFav = computed(() => favorites.value.includes(current.value?.city))
 
+const chartLabels = computed(() =>
+  (forecast.value?.hourly ?? []).map((h) => formatHour(h.dt, forecast.value.timezone)),
+)
+const chartValues = computed(() => (forecast.value?.hourly ?? []).map((h) => h.temp))
+
 const load = async () => {
   loading.value = true
   error.value = ''
   try {
-    const [currentRes, forecastRes] = await Promise.all([
+    const [cur, fc] = await Promise.all([
       fetchCurrentWeatherByCity(cityParam.value, config.unit),
       fetchForecastByCity(cityParam.value, config.unit),
     ])
-    current.value = currentRes
-    forecast.value = forecastRes
+    current.value = cur
+    forecast.value = fc
   } catch (err) {
     error.value = err.message
   } finally {
@@ -46,135 +53,223 @@ watch([cityParam, () => config.unit], load)
 </script>
 
 <template>
-  <div class="detail-view">
-    <el-button :icon="ArrowLeft" text @click="router.push('/')">홈으로</el-button>
+  <div class="detail">
+    <el-button :icon="ArrowLeft" text @click="router.push({ name: 'weather-home' })"
+      >홈으로</el-button
+    >
 
-    <el-alert v-if="error" :title="error" type="error" show-icon />
+    <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+    <SkeletonCard v-if="loading" height="220px" :lines="3" />
 
-    <div v-loading="loading">
-      <template v-if="current">
-        <BaseDashboardCard class="detail-view__hero">
-          <template #header>
-            <h1>{{ current.city }}<small v-if="current.country">, {{ current.country }}</small></h1>
-            <el-icon class="detail-view__fav" @click="weatherStore.toggleFavorite(current.city)">
-              <StarFilled v-if="isFav" style="color: #f7b500" />
-              <Star v-else />
-            </el-icon>
-          </template>
-          <div class="detail-view__main">
-            <span class="detail-view__icon">{{ iconEmoji(current.icon) }}</span>
-            <div>
-              <div class="detail-view__temp">{{ formatTemp(current.temp, config.unit) }}</div>
-              <div class="detail-view__desc">{{ current.description }}</div>
-            </div>
-          </div>
-          <div class="detail-view__stats">
-            <div><span>체감</span><strong>{{ formatTemp(current.feelsLike, config.unit) }}</strong></div>
-            <div><span>최고 / 최저</span><strong>{{ formatTemp(current.tempMax, config.unit) }} / {{ formatTemp(current.tempMin, config.unit) }}</strong></div>
-            <div><span>습도</span><strong>{{ current.humidity }}%</strong></div>
-            <div><span>바람</span><strong>{{ current.windSpeed }} m/s</strong></div>
-          </div>
-        </BaseDashboardCard>
+    <template v-else-if="current">
+      <!-- Apple Weather 스타일 히어로 -->
+      <section class="detail__hero">
+        <div class="detail__hero-top">
+          <h1>
+            {{ current.city }}<small v-if="current.country">, {{ current.country }}</small>
+          </h1>
+          <el-button
+            :icon="isFav ? StarFilled : Star"
+            circle
+            :class="{ 'is-fav': isFav }"
+            :aria-label="isFav ? '즐겨찾기 해제' : '즐겨찾기 추가'"
+            @click="weatherStore.toggleFavorite(current.city)"
+          />
+        </div>
+        <div class="detail__temp temp-display">{{ formatTemp(current.temp, config.unit) }}</div>
+        <p class="detail__desc">{{ iconEmoji(current.icon) }} {{ current.description }}</p>
+        <p class="detail__range mono-num">
+          최고 {{ formatTemp(current.tempMax, config.unit) }} · 최저
+          {{ formatTemp(current.tempMin, config.unit) }} · 체감
+          {{ formatTemp(current.feelsLike, config.unit) }}
+        </p>
+      </section>
 
-        <BaseDashboardCard v-if="forecast?.hourly?.length">
-          <template #header><h2>시간별 예보</h2></template>
-          <div class="detail-view__hourly">
-            <div v-for="h in forecast.hourly" :key="h.dt" class="detail-view__hour">
-              <span>{{ formatHour(h.dt, forecast.timezone) }}</span>
-              <span class="detail-view__hour-icon">{{ iconEmoji(h.icon) }}</span>
-              <span>{{ formatTemp(h.temp, config.unit) }}</span>
-            </div>
+      <!-- 시간별 예보 스트립 -->
+      <BaseDashboardCard v-if="forecast?.hourly?.length">
+        <template #header><span>시간별 예보</span></template>
+        <div class="hourly">
+          <div v-for="h in forecast.hourly" :key="h.dt" class="hourly__item">
+            <span class="hourly__time">{{ formatHour(h.dt, forecast.timezone) }}</span>
+            <span class="hourly__emoji">{{ iconEmoji(h.icon) }}</span>
+            <span class="hourly__temp mono-num">{{ formatTemp(h.temp, config.unit) }}</span>
           </div>
-        </BaseDashboardCard>
+        </div>
+      </BaseDashboardCard>
 
-        <BaseDashboardCard v-if="forecast?.daily?.length">
-          <template #header><h2>일별 예보</h2></template>
-          <div class="detail-view__daily">
-            <div v-for="d in forecast.daily" :key="d.day" class="detail-view__day">
-              <span>{{ formatWeekday(d.dt, forecast.timezone) }}</span>
-              <span class="detail-view__hour-icon">{{ iconEmoji(d.icon) }}</span>
-              <span>{{ formatTemp(d.max, config.unit) }} / {{ formatTemp(d.min, config.unit) }}</span>
-            </div>
+      <!-- Chart.js 기온 추이 -->
+      <BaseDashboardCard v-if="chartValues.length">
+        <template #header>
+          <span
+            ><el-icon><Odometer /></el-icon> 기온 추이</span
+          >
+        </template>
+        <TempChart :labels="chartLabels" :values="chartValues" :unit-symbol="config.unitSymbol" />
+      </BaseDashboardCard>
+
+      <!-- 상세 지표 -->
+      <BaseDashboardCard>
+        <template #header><span>상세 정보</span></template>
+        <div class="metrics">
+          <div class="metrics__item">
+            <span>습도</span><strong>{{ current.humidity }}%</strong>
           </div>
-        </BaseDashboardCard>
-      </template>
-    </div>
+          <div class="metrics__item">
+            <span>기압</span><strong>{{ current.pressure }} hPa</strong>
+          </div>
+          <div class="metrics__item">
+            <span>바람</span><strong>{{ current.windSpeed }} m/s</strong>
+          </div>
+          <div class="metrics__item">
+            <span>체감</span><strong>{{ formatTemp(current.feelsLike, config.unit) }}</strong>
+          </div>
+        </div>
+      </BaseDashboardCard>
+
+      <!-- 일별 예보 -->
+      <BaseDashboardCard v-if="forecast?.daily?.length">
+        <template #header><span>5일 예보</span></template>
+        <ul class="daily">
+          <li v-for="d in forecast.daily" :key="d.day" class="daily__row">
+            <span class="daily__day">{{ formatWeekday(d.dt, forecast.timezone) }}</span>
+            <span class="daily__emoji">{{ iconEmoji(d.icon) }}</span>
+            <span class="daily__desc">{{ d.description }}</span>
+            <span class="daily__range mono-num">
+              {{ formatTemp(d.max, config.unit) }} / {{ formatTemp(d.min, config.unit) }}
+            </span>
+          </li>
+        </ul>
+      </BaseDashboardCard>
+    </template>
   </div>
 </template>
 
 <style scoped>
-.detail-view {
+.detail {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
-.detail-view__hero h1 {
-  margin: 0;
-  font-size: 22px;
+.detail__hero {
+  padding: 30px 28px;
+  text-align: center;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--surface-border);
+  background: linear-gradient(160deg, rgba(39, 244, 210, 0.12), transparent 58%), var(--surface);
+  backdrop-filter: var(--blur-glass);
 }
-.detail-view__hero h1 small {
-  color: var(--text-muted);
-  font-weight: 400;
-  margin-left: 6px;
-}
-.detail-view__fav {
-  cursor: pointer;
-}
-.detail-view__main {
+.detail__hero-top {
   display: flex;
   align-items: center;
-  gap: 18px;
+  justify-content: center;
+  gap: 12px;
 }
-.detail-view__icon {
-  font-size: 64px;
+.detail__hero-top h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 600;
 }
-.detail-view__temp {
-  font-size: 44px;
-  font-weight: 800;
-}
-.detail-view__desc {
+.detail__hero-top h1 small {
   color: var(--text-muted);
+  font-weight: 400;
+  font-size: 16px;
+  margin-left: 5px;
+}
+.detail__hero-top .is-fav {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.detail__temp {
+  font-size: clamp(64px, 13vw, 104px);
+  line-height: 1;
+  margin: 10px 0 2px;
+  color: var(--hero-text);
+}
+.detail__desc {
+  margin: 0;
+  font-size: 17px;
+  color: var(--hero-sub);
   text-transform: capitalize;
 }
-.detail-view__stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 14px;
-  margin-top: 18px;
+.detail__range {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
 }
-.detail-view__stats span {
-  display: block;
+.hourly {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.hourly__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 52px;
+}
+.hourly__time {
   font-size: 12px;
   color: var(--text-muted);
 }
-.detail-view__hourly,
-.detail-view__daily {
-  display: flex;
-  overflow-x: auto;
-  gap: 16px;
-  padding-bottom: 4px;
+.hourly__emoji {
+  font-size: 22px;
 }
-.detail-view__daily {
-  flex-direction: column;
-  overflow-x: visible;
+.hourly__temp {
+  font-size: 15px;
+  font-weight: 600;
 }
-.detail-view__hour,
-.detail-view__day {
-  display: flex;
-  flex-direction: column;
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 14px;
+}
+.metrics__item span {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+.metrics__item strong {
+  font-size: 19px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.daily {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.daily__row {
+  display: grid;
+  grid-template-columns: 48px 34px 1fr auto;
   align-items: center;
-  gap: 4px;
-  min-width: 56px;
-  font-size: 13px;
-}
-.detail-view__day {
-  flex-direction: row;
-  justify-content: space-between;
-  min-width: 100%;
-  padding: 6px 0;
+  gap: 10px;
+  padding: 11px 0;
   border-bottom: 1px solid var(--surface-border);
+  font-size: 14px;
 }
-.detail-view__hour-icon {
+.daily__row:last-child {
+  border-bottom: none;
+}
+.daily__day {
+  font-weight: 600;
+}
+.daily__emoji {
   font-size: 20px;
+}
+.daily__desc {
+  color: var(--text-muted);
+  text-transform: capitalize;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.daily__range {
+  font-weight: 600;
 }
 </style>

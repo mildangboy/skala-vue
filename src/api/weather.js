@@ -9,7 +9,7 @@ export const fetchCurrentWeatherByCity = async (city, unit = 'metric') => {
   return normalizeCurrentWeather(data)
 }
 
-// 좌표로 현재 날씨 조회 (상세 화면 등에서 재사용)
+// 좌표로 현재 날씨 조회 (F1 서킷 / 내 위치에서 사용)
 export const fetchCurrentWeatherByCoords = async (lat, lon, unit = 'metric') => {
   const { data } = await client.get('/data/2.5/weather', {
     params: { lat, lon, units: unit },
@@ -17,10 +17,18 @@ export const fetchCurrentWeatherByCoords = async (lat, lon, unit = 'metric') => 
   return normalizeCurrentWeather(data)
 }
 
-// 5일치 3시간 간격 예보 조회
+// 5일치 3시간 간격 예보 (도시명)
 export const fetchForecastByCity = async (city, unit = 'metric') => {
   const { data } = await client.get('/data/2.5/forecast', {
     params: { q: city, units: unit },
+  })
+  return normalizeForecast(data)
+}
+
+// 5일치 3시간 간격 예보 (좌표)
+export const fetchForecastByCoords = async (lat, lon, unit = 'metric') => {
+  const { data } = await client.get('/data/2.5/forecast', {
+    params: { lat, lon, units: unit },
   })
   return normalizeForecast(data)
 }

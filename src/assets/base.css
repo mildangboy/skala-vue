@@ -1,13 +1,86 @@
-:root {
-  --brand-500: #4f8cff;
-  --brand-600: #2f6fe0;
-  --brand-700: #1f4fb8;
-  --surface-glass: rgba(255, 255, 255, 0.68);
-  --surface-border: rgba(31, 79, 184, 0.12);
-  --text-main: #1b2a41;
-  --text-muted: #64748b;
+/**
+ * 디자인 시스템 — Mercedes-AMG PETRONAS F1 팀 컬러 × Apple Weather 레이아웃 언어
+ * 팀 컬러: Petronas Teal(#27F4D2), Deep Black(#0A0A0A), Silver(#C8CCCE)
+ */
 
-  --el-color-primary: var(--brand-500);
+:root {
+  /* ── 브랜드 팔레트 (Mercedes-AMG PETRONAS) ───────────────────── */
+  --amg-teal: #27f4d2;
+  --amg-teal-dim: #00d2be;
+  --amg-teal-deep: #00a68f;
+  --amg-black: #0a0a0a;
+  --amg-carbon: #16181a;
+  --amg-graphite: #24282b;
+  --amg-silver: #c8ccce;
+  --amg-silver-dim: #8d9295;
+
+  /* ── 라이트 테마 (기본) ───────────────────────────────────────── */
+  --bg-base: #f2f4f5;
+  --bg-gradient:
+    radial-gradient(1200px 600px at 12% -10%, rgba(39, 244, 210, 0.22), transparent 60%),
+    radial-gradient(900px 500px at 88% 8%, rgba(0, 166, 143, 0.14), transparent 55%),
+    linear-gradient(180deg, #eef1f2 0%, #f6f8f8 55%, #ffffff 100%);
+
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --surface-border: rgba(10, 10, 10, 0.08);
+  --surface-shadow: 0 10px 34px rgba(10, 20, 24, 0.1);
+
+  --text-primary: #0e1416;
+  --text-secondary: #4a5356;
+  --text-muted: #788184;
+  --accent: var(--amg-teal-deep);
+  --accent-soft: rgba(0, 166, 143, 0.12);
+
+  --hero-text: #0e1416;
+  --hero-sub: rgba(14, 20, 22, 0.62);
+
+  --skeleton-base: rgba(10, 10, 10, 0.06);
+  --skeleton-shine: rgba(10, 10, 10, 0.12);
+
+  /* Element Plus 연동 */
+  --el-color-primary: var(--amg-teal-deep);
+  --el-border-radius-base: 12px;
+
+  --radius-card: 22px;
+  --radius-pill: 999px;
+  --blur-glass: saturate(180%) blur(20px);
+}
+
+/* ── 다크 테마 (Apple Weather 야간 + AMG 카본) ────────────────── */
+html.dark {
+  --bg-base: #06080a;
+  --bg-gradient:
+    radial-gradient(1100px 560px at 10% -8%, rgba(39, 244, 210, 0.16), transparent 58%),
+    radial-gradient(900px 520px at 90% 4%, rgba(0, 166, 143, 0.12), transparent 55%),
+    linear-gradient(180deg, #0a0d0f 0%, #06080a 55%, #030405 100%);
+
+  --surface: rgba(30, 35, 38, 0.62);
+  --surface-strong: rgba(36, 40, 43, 0.86);
+  --surface-border: rgba(200, 204, 206, 0.14);
+  --surface-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+
+  --text-primary: #f2f5f6;
+  --text-secondary: #b9c0c3;
+  --text-muted: #8d9295;
+  --accent: var(--amg-teal);
+  --accent-soft: rgba(39, 244, 210, 0.14);
+
+  --hero-text: #ffffff;
+  --hero-sub: rgba(255, 255, 255, 0.68);
+
+  --skeleton-base: rgba(255, 255, 255, 0.07);
+  --skeleton-shine: rgba(255, 255, 255, 0.14);
+
+  --el-color-primary: var(--amg-teal);
+  --el-bg-color: #16181a;
+  --el-bg-color-overlay: #1c2022;
+  --el-text-color-primary: #f2f5f6;
+  --el-text-color-regular: #b9c0c3;
+  --el-border-color: rgba(200, 204, 206, 0.18);
+  --el-border-color-light: rgba(200, 204, 206, 0.12);
+  --el-fill-color-blank: transparent;
+  --el-fill-color-light: rgba(255, 255, 255, 0.06);
 }
 
 * {
@@ -22,18 +95,47 @@ body {
 
 body {
   min-height: 100vh;
-  color: var(--text-main);
-  background:
-    radial-gradient(circle at 15% 0%, rgba(79, 140, 255, 0.18), transparent 45%),
-    radial-gradient(circle at 85% 20%, rgba(255, 196, 92, 0.16), transparent 40%),
-    linear-gradient(180deg, #eef4ff 0%, #f7faff 60%, #ffffff 100%);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  background-image: var(--bg-gradient);
   background-attachment: fixed;
   font-family:
-    'Pretendard',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Noto Sans KR',
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Pretendard', 'Segoe UI', Roboto,
+    'Noto Sans KR', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.4s ease,
+    color 0.4s ease;
+}
+
+/* Apple Weather 특유의 얇고 큰 숫자 표현 */
+.temp-display {
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono-num {
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-border);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

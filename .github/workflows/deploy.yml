@@ -33,6 +33,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: SSR smoke test
+        run: npm run test:smoke
+
       - name: Build
         run: npm run build
         env:

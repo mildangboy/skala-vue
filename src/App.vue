@@ -1,18 +1,24 @@
 <script setup>
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import { useThemeStore } from '@/stores/themeStore'
+
+// 앱 시작 시 테마 스토어를 초기화해 저장된 설정을 즉시 적용
+useThemeStore()
 </script>
 
 <template>
   <div class="app-shell">
     <AppHeader />
+
     <main class="app-main">
       <RouterView v-slot="{ Component, route }">
-        <Transition name="fade" mode="out-in">
+        <Transition name="page" mode="out-in">
           <component :is="Component" :key="route.fullPath" />
         </Transition>
       </RouterView>
     </main>
+
     <AppFooter />
   </div>
 </template>
@@ -26,17 +32,28 @@ import AppFooter from '@/components/AppFooter.vue'
 .app-main {
   flex: 1;
   width: 100%;
-  max-width: 1080px;
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 28px 24px 12px;
-  box-sizing: border-box;
+  padding: 30px 24px 10px;
 }
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.18s ease;
+.page-enter-active,
+.page-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.fade-enter-from,
-.fade-leave-to {
+.page-enter-from {
   opacity: 0;
+  transform: translateY(8px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (max-width: 640px) {
+  .app-main {
+    padding: 20px 16px 8px;
+  }
 }
 </style>
