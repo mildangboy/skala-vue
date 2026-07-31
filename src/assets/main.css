@@ -1,0 +1,11 @@
+@import './base.css';
+
+#app {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  color: var(--text-main);
+}
