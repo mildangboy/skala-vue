@@ -21,6 +21,7 @@ const dateLabel = computed(() =>
   <article class="circuit-card" :class="{ 'is-past': past }" @click="$emit('open', race.circuitId)">
     <div class="circuit-card__head">
       <span class="circuit-card__round">R{{ race.round }}</span>
+      <el-tag v-if="race.sprint" size="small" class="circuit-card__sprint">SPRINT</el-tag>
       <span class="circuit-card__date">{{ dateLabel }}</span>
     </div>
 
@@ -35,8 +36,6 @@ const dateLabel = computed(() =>
       </template>
       <span v-else class="circuit-card__pending">날씨 조회 중…</span>
     </div>
-
-    <el-tag v-if="race.sprint" size="small" class="circuit-card__sprint">SPRINT</el-tag>
   </article>
 </template>
 
@@ -66,8 +65,8 @@ const dateLabel = computed(() =>
 }
 .circuit-card__head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -77,6 +76,8 @@ const dateLabel = computed(() =>
 }
 .circuit-card__date {
   color: var(--text-muted);
+  margin-left: auto; /* 날짜를 항상 오른쪽 끝으로 */
+  white-space: nowrap;
 }
 .circuit-card__name {
   margin: 10px 0 2px;
@@ -118,14 +119,14 @@ const dateLabel = computed(() =>
   color: var(--text-muted);
 }
 .circuit-card__sprint {
-  position: absolute;
-  top: 14px;
-  right: 54px;
   --el-tag-bg-color: var(--accent-soft);
   --el-tag-border-color: transparent;
   --el-tag-text-color: var(--accent);
+  height: 17px;
+  padding: 0 6px;
   font-weight: 800;
   font-size: 9px;
   letter-spacing: 0.08em;
+  flex-shrink: 0;
 }
 </style>

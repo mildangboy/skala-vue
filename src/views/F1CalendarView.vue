@@ -219,7 +219,7 @@ const tableRows = computed(() =>
   cursor: pointer;
 }
 .calendar-view__table :deep(.el-table__row):hover > td {
-  background: var(--accent-soft) !important;
+  background: var(--table-row-hover);
 }
 .calendar-view__temp {
   font-variant-numeric: tabular-nums;
