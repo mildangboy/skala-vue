@@ -34,3 +34,25 @@ html.dark .el-dialog {
 html.dark .el-empty__description p {
   color: var(--text-muted);
 }
+
+/* ── 채워진 primary 버튼 대비 보정 ─────────────────────────────
+   Element Plus 기본값은 배경 위 흰 글자인데, 브랜드 틸 위에서는
+   대비가 부족하다(다크 1.40:1 / 라이트 3.07:1). 테마별로 배경과
+   글자색을 함께 지정해 두 모드 모두 WCAG AA(4.5:1)를 만족시킨다. */
+.el-button--primary {
+  --el-button-bg-color: var(--on-accent-bg);
+  --el-button-border-color: var(--on-accent-bg);
+  --el-button-text-color: var(--on-accent-text);
+  --el-button-hover-bg-color: var(--on-accent-bg-hover);
+  --el-button-hover-border-color: var(--on-accent-bg-hover);
+  --el-button-hover-text-color: var(--on-accent-text);
+  --el-button-active-bg-color: var(--on-accent-bg-active);
+  --el-button-active-border-color: var(--on-accent-bg-active);
+  --el-button-active-text-color: var(--on-accent-text);
+  font-weight: 600;
+}
+
+/* 아이콘도 동일한 글자색을 따르도록 */
+.el-button--primary .el-icon {
+  color: currentColor;
+}
