@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
@@ -14,7 +14,8 @@
       // FOUC 방지: Vue 마운트 전에 저장된 테마를 즉시 적용
       ;(function () {
         try {
-          var mode = localStorage.getItem('skala-vue:theme') || 'system'
+          // 저장된 설정이 없으면 다크로 시작 (themeStore의 DEFAULT_MODE와 일치시킬 것)
+          var mode = localStorage.getItem('skala-vue:theme') || 'dark'
           var dark =
             mode === 'dark' ||
             (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)

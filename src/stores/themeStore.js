@@ -4,6 +4,10 @@ import { defineStore } from 'pinia'
 const STORAGE_KEY = 'skala-vue:theme'
 const MODES = ['system', 'light', 'dark']
 
+// 앱의 기본 테마. AMG 다크 팔레트가 이 앱의 기본 얼굴이라 다크로 시작한다.
+// 사용자가 한 번이라도 테마를 고르면 그 선택이 localStorage에 남아 우선한다.
+const DEFAULT_MODE = 'dark'
+
 // OS 다크모드 설정을 구독하는 MediaQueryList
 // matchMedia를 지원하지 않는 환경(구형 브라우저, 테스트 러너)에서도 앱이 죽지 않도록 폴백을 둔다
 const media =
@@ -12,11 +16,11 @@ const media =
     : { matches: false, addEventListener() {}, removeEventListener() {} }
 
 export const useThemeStore = defineStore('theme', () => {
-  // 'system' | 'light' | 'dark'
+  // 'system' | 'light' | 'dark' — 저장된 값이 없으면 DEFAULT_MODE
   const mode = ref(
     MODES.includes(localStorage.getItem(STORAGE_KEY))
       ? localStorage.getItem(STORAGE_KEY)
-      : 'system',
+      : DEFAULT_MODE,
   )
   const systemPrefersDark = ref(media.matches)
 
