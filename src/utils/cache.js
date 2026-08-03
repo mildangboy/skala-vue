@@ -3,6 +3,11 @@
  * 네트워크가 끊겼거나 API 호출이 실패해도 마지막 정상 응답을 보여주기 위해 사용한다.
  */
 const PREFIX = 'skala-vue:cache:'
+
+// structuredClone은 비교적 최신 API(Chrome 98+, Safari 15.4+)라
+// 미지원 환경에서는 JSON 복제로 대체한다. 캐시 값은 순수 JSON이라 손실이 없다.
+const clone = (value) =>
+  typeof structuredClone === 'function' ? structuredClone(value) : JSON.parse(JSON.stringify(value))
 const DEFAULT_TTL = 10 * 60 * 1000 // 10분
 
 export const cacheSet = (key, value) => {
@@ -22,7 +27,7 @@ export const cacheGet = (key, ttl = DEFAULT_TTL) => {
     const raw = localStorage.getItem(PREFIX + key)
     if (!raw) return null
     const { value, at } = JSON.parse(raw)
-    return { value: structuredClone(value), stale: Date.now() - at > ttl, at }
+    return { value: clone(value), stale: Date.now() - at > ttl, at }
   } catch {
     return null
   }

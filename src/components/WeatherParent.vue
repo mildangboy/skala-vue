@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
@@ -18,6 +18,14 @@ const { cards, myLocation, loading, locating, error, favorites, usingCache, hist
   storeToRefs(weather)
 const { isOnline } = useOnlineStatus()
 
+/* ── 반응형 상태 ───────────────────────────────────────────────
+   searchQuery : 검색 입력값 (SearchBar와 v-model로 양방향 연결)
+   selectedCity: 카드 클릭으로 선택된 도시
+   statusText  : 화면 하단 상태바 문구                            */
+const searchQuery = ref('')
+const selectedCity = ref('')
+const statusText = ref('')
+
 const load = () => weather.loadDashboard(config.unit)
 
 onMounted(() => {
@@ -29,9 +37,42 @@ onBeforeUnmount(() => window.removeEventListener('skala:reload-weather', load))
 // 단위가 바뀌면 대시보드를 다시 조회
 watch(() => config.unit, load)
 
+// 내 위치 카드를 목록 맨 앞에 붙인다
 const displayCards = computed(() =>
   myLocation.value ? [{ ...myLocation.value, __badge: 'location' }, ...cards.value] : cards.value,
 )
+
+/* ── computed: 검색어로 목록 필터링 ───────────────────────────
+   서버 조회(Enter)와 별개로, 이미 받아온 카드를 즉시 좁혀준다.
+   즐겨찾기가 쌓였을 때 원하는 도시를 바로 찾기 위한 용도.       */
+const filteredCards = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return displayCards.value
+  return displayCards.value.filter((c) => (c.city ?? '').toLowerCase().includes(q))
+})
+
+// 검색어는 입력했지만 목록에 일치하는 카드가 없는 상태
+const noMatch = computed(
+  () => Boolean(searchQuery.value.trim()) && filteredCards.value.length === 0 && !loading.value,
+)
+
+/* ── watch: 선택된 도시 변화 감시 ──────────────────────────────
+   선택이 바뀔 때만 상태바 문구를 갱신하고 그 사실을 로그로 남긴다. */
+watch(selectedCity, (city, prev) => {
+  statusText.value = city ? `${city}이(가) 선택되었습니다.` : ''
+  console.log(`[watch 감지] 선택 도시 변경: ${prev || '(없음)'} → ${city || '(없음)'}`)
+  if (statusText.value) console.log(`[watch 감지] 상태바 문구 업데이트 -> "${statusText.value}"`)
+})
+
+/* ── watchEffect: 검색어 추적 ─────────────────────────────────
+   의존하는 반응형 값(searchQuery, filteredCards)이 바뀔 때마다 자동 실행된다.
+   watch와 달리 감시 대상을 따로 명시하지 않는 점이 차이.        */
+watchEffect(() => {
+  const q = searchQuery.value
+  console.log(
+    `[watchEffect 자동 호출] 현재 검색어 '${q}' — 목록에서 ${filteredCards.value.length}건 일치`,
+  )
+})
 
 const handleSearch = async (city) => {
   try {
@@ -61,18 +102,30 @@ const handleRemove = async (city) => {
       draggable: true,
     })
     weather.removeCard(city)
+    if (selectedCity.value === city) selectedCity.value = ''
     ElMessage.success({ message: '삭제되었습니다', duration: 1600 })
   } catch {
     // 사용자가 취소한 경우 — 별도 처리 없음
   }
 }
 
+const handleSelect = (city) => {
+  selectedCity.value = selectedCity.value === city ? '' : city // 다시 누르면 선택 해제
+}
+
 const handleOpen = (city) => router.push({ name: 'weather-detail', params: { city } })
+
+const clearSearch = () => (searchQuery.value = '')
 </script>
 
 <template>
   <section class="weather-parent">
-    <SearchBar :locating="locating" @search="handleSearch" @locate="handleLocate" />
+    <SearchBar
+      v-model="searchQuery"
+      :locating="locating"
+      @search="handleSearch"
+      @locate="handleLocate"
+    />
 
     <OfflineBanner :offline="!isOnline" :stale="usingCache" />
 
@@ -95,29 +148,65 @@ const handleOpen = (city) => router.push({ name: 'weather-detail', params: { cit
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
+    <!-- 검색 중일 때 필터 상태 안내 -->
+    <p v-if="searchQuery.trim()" class="weather-parent__filter-info">
+      <template v-if="filteredCards.length">
+        '{{ searchQuery }}' 검색 결과 <strong>{{ filteredCards.length }}건</strong>
+      </template>
+      <template v-else>목록에 일치하는 도시가 없습니다</template>
+      <button type="button" class="weather-parent__clear" @click="clearSearch">필터 해제</button>
+    </p>
+
     <div class="weather-parent__grid">
       <template v-if="loading && !displayCards.length">
         <SkeletonCard v-for="n in 4" :key="n" height="168px" :lines="2" />
       </template>
       <template v-else>
         <WeatherCard
-          v-for="item in displayCards"
+          v-for="item in filteredCards"
           :key="item.__badge === 'location' ? '__my_location' : item.city"
           :data="item"
           :badge="item.__badge ?? ''"
           :favorite="favorites.includes(item.city)"
+          :selected="selectedCity === item.city"
           :removable="item.__badge !== 'location'"
           @toggle-favorite="weather.toggleFavorite"
           @remove="handleRemove"
+          @select="handleSelect"
           @open="handleOpen"
         />
       </template>
     </div>
 
+    <!-- 검색어와 일치하는 카드가 없을 때 -->
+    <el-empty v-if="noMatch" :description="`'${searchQuery}'와(과) 일치하는 도시가 없습니다`">
+      <el-button type="primary" @click="handleSearch(searchQuery.trim())">
+        '{{ searchQuery.trim() }}' 날씨 새로 불러오기
+      </el-button>
+    </el-empty>
+
+    <!-- 검색어가 없는데 카드도 없을 때 -->
     <el-empty
-      v-if="!loading && !displayCards.length"
+      v-else-if="!loading && !displayCards.length"
       description="표시할 날씨가 없습니다. 도시를 검색해보세요."
     />
+
+    <!-- 상태바 -->
+    <Transition name="status">
+      <div v-if="statusText" class="status-bar" role="status">
+        <span class="status-bar__dot" />
+        {{ statusText }}
+        <el-button text size="small" @click="handleOpen(selectedCity)">상세보기</el-button>
+        <button
+          type="button"
+          class="status-bar__close"
+          aria-label="선택 해제"
+          @click="selectedCity = ''"
+        >
+          ✕
+        </button>
+      </div>
+    </Transition>
   </section>
 </template>
 
@@ -159,9 +248,62 @@ const handleOpen = (city) => router.push({ name: 'weather-detail', params: { cit
   cursor: pointer;
   text-decoration: underline;
 }
+.weather-parent__filter-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.weather-parent__filter-info strong {
+  color: var(--accent);
+}
 .weather-parent__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 16px;
+}
+
+/* 상태바 */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.status-bar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.status-bar__close {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+.status-bar__close:hover {
+  color: var(--text-primary);
+}
+.status-enter-active,
+.status-leave-active {
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+}
+.status-enter-from,
+.status-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
 }
 </style>

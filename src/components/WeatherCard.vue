@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Star, StarFilled, Close, Position } from '@element-plus/icons-vue'
+import { Star, StarFilled, Close, Position, TopRight } from '@element-plus/icons-vue'
 import { formatTemp } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { useConfigStore } from '@/stores/configStore'
@@ -10,8 +10,9 @@ const props = defineProps({
   favorite: { type: Boolean, default: false },
   removable: { type: Boolean, default: true },
   badge: { type: String, default: '' },
+  selected: { type: Boolean, default: false },
 })
-const emit = defineEmits(['toggle-favorite', 'open', 'remove'])
+const emit = defineEmits(['toggle-favorite', 'open', 'remove', 'select'])
 
 const config = useConfigStore()
 const hasError = computed(() => Boolean(props.data.failed))
@@ -25,8 +26,9 @@ const range = computed(() =>
 <template>
   <article
     class="weather-card"
-    :class="{ 'weather-card--error': hasError }"
-    @click="!hasError && emit('open', data.city)"
+    :class="{ 'weather-card--error': hasError, 'is-selected': selected }"
+    :aria-pressed="selected"
+    @click="!hasError && emit('select', data.city)"
   >
     <div class="weather-card__top">
       <div class="weather-card__names">
@@ -48,6 +50,15 @@ const range = computed(() =>
           @click="emit('toggle-favorite', data.city)"
         >
           <el-icon><StarFilled v-if="favorite" /><Star v-else /></el-icon>
+        </button>
+        <button
+          type="button"
+          class="weather-card__icon-btn"
+          aria-label="상세 보기"
+          title="상세 보기"
+          @click="emit('open', data.city)"
+        >
+          <el-icon><TopRight /></el-icon>
         </button>
         <button
           v-if="removable"
@@ -96,6 +107,21 @@ const range = computed(() =>
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--accent) 42%, transparent);
   box-shadow: 0 16px 40px rgba(0, 166, 143, 0.16);
+}
+.weather-card.is-selected {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--accent-soft), transparent 55%), var(--surface);
+  box-shadow: 0 12px 34px rgba(0, 166, 143, 0.18);
+}
+.weather-card.is-selected::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 0;
+  width: 3px;
+  height: 22px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
 }
 .weather-card--error {
   cursor: default;

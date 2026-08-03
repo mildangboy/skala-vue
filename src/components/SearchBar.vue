@@ -1,5 +1,4 @@
 <script setup>
-import { ref } from 'vue'
 import { Search, Position } from '@element-plus/icons-vue'
 import { searchCities } from '@/api/weather'
 
@@ -8,7 +7,8 @@ const props = defineProps({
 })
 const emit = defineEmits(['search', 'locate'])
 
-const keyword = ref('')
+// 검색어는 부모(WeatherParent)가 목록 필터링에도 쓰므로 v-model로 끌어올린다
+const keyword = defineModel({ type: String, default: '' })
 
 // el-autocomplete 비동기 후보 조회 (OpenWeatherMap Geocoding API)
 const fetchSuggestions = async (query, callback) => {
@@ -33,7 +33,6 @@ const submit = () => {
   const city = keyword.value.trim()
   if (!city) return
   emit('search', city)
-  keyword.value = ''
 }
 </script>
 
