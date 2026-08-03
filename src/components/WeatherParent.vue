@@ -28,11 +28,34 @@ const statusText = ref('')
 
 const load = () => weather.loadDashboard(config.unit)
 
+/**
+ * 카드 바깥을 클릭하면 선택을 해제한다.
+ * 카드 내부 클릭은 카드가 직접 처리하므로(선택/토글) 여기서 건너뛴다.
+ * 별·삭제·상세 버튼은 @click.stop이라 이 핸들러까지 오지 않는다.
+ */
+const handleOutsideClick = (e) => {
+  if (!selectedCity.value) return
+  if (e.target.closest?.('.weather-card')) return
+  selectedCity.value = ''
+}
+
+// Esc로도 선택을 풀 수 있게 한다 (키보드 사용자 배려)
+const handleEscape = (e) => {
+  if (e.key === 'Escape' && selectedCity.value) selectedCity.value = ''
+}
+
 onMounted(() => {
   load()
   window.addEventListener('skala:reload-weather', load)
+  document.addEventListener('click', handleOutsideClick)
+  document.addEventListener('keydown', handleEscape)
 })
-onBeforeUnmount(() => window.removeEventListener('skala:reload-weather', load))
+
+onBeforeUnmount(() => {
+  window.removeEventListener('skala:reload-weather', load)
+  document.removeEventListener('click', handleOutsideClick)
+  document.removeEventListener('keydown', handleEscape)
+})
 
 // 단위가 바뀌면 대시보드를 다시 조회
 watch(() => config.unit, load)
