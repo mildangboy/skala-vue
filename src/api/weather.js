@@ -37,15 +37,21 @@ export const fetchForecastByCoords = async (lat, lon, unit = 'metric') => {
 /**
  * 검색어 자동완성.
  *
- * 로컬 색인(한/영 접두어 매칭)을 먼저 보여주고 그 뒤에 Geocoding API 결과를 덧붙인다.
- * API 단독으로는 'Dae'에 대구·대전이 나오지 않고 한글 입력도 매칭되지 않기 때문.
- * 같은 도시가 양쪽에서 나오면 로컬 항목을 남긴다.
+ * 로컬 색인을 접두어로 매칭해 알파벳 순으로 먼저 보여주고, 자리가 남으면
+ * Geocoding API 결과를 뒤에 덧붙인다. API 단독으로는 'Dae'에 대구·대전이 나오지 않고
+ * 한글 입력도 매칭되지 않기 때문.
+ *
+ * 로컬 결과가 충분하면 API를 호출하지 않는다 — 알파벳 순서를 흐트러뜨리지 않고
+ * 분당 60회 호출 한도도 아낀다.
  */
 export const searchCities = async (query) => {
   const q = query?.trim()
   if (!q) return []
 
   const local = searchLocalCities(q)
+
+  // 로컬에서 6건 이상 잡히면 그대로 보여준다 (API 호출 생략)
+  if (local.length >= 6) return local
 
   let remote
   try {
