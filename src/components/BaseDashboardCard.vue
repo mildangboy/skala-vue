@@ -3,7 +3,8 @@
 defineProps({
   clickable: { type: Boolean, default: false },
   padded: { type: Boolean, default: true },
-  tone: { type: String, default: 'default' }, // 'default' | 'accent'
+  // 'default' 유리 카드 | 'accent' 강조 | 'bare' 프레임 없이 슬롯 구조만 사용
+  tone: { type: String, default: 'default' },
 })
 const emit = defineEmits(['click'])
 </script>
@@ -42,6 +43,15 @@ const emit = defineEmits(['click'])
 }
 .glass-card--padded {
   padding: 18px 20px;
+}
+/* 구조(헤더 슬롯 + 본문 슬롯)는 그대로 쓰되 카드 프레임은 그리지 않는다.
+   카드 안에 카드가 겹쳐 배경이 탁해지는 것을 피하기 위한 변형. */
+.glass-card--bare {
+  background: none;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .glass-card--accent {
   border-color: color-mix(in srgb, var(--accent) 38%, transparent);

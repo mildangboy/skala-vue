@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import SearchBar from './SearchBar.vue'
 import WeatherCard from './WeatherCard.vue'
 import SkeletonCard from './SkeletonCard.vue'
+import BaseDashboardCard from './BaseDashboardCard.vue'
 import OfflineBanner from './OfflineBanner.vue'
 import { useConfigStore } from '@/stores/configStore'
 import { useWeatherStore } from '@/stores/weatherStore'
@@ -144,12 +145,16 @@ const clearSearch = () => (searchQuery.value = '')
 
 <template>
   <section class="weather-parent">
-    <SearchBar
-      v-model="searchQuery"
-      :locating="locating"
-      @search="handleSearch"
-      @locate="handleLocate"
-    />
+    <!-- 검색 영역: BaseDashboardCard의 슬롯으로 주입 -->
+    <BaseDashboardCard tone="bare" :padded="false">
+      <template #header><span>도시 검색</span></template>
+      <SearchBar
+        v-model="searchQuery"
+        :locating="locating"
+        @search="handleSearch"
+        @locate="handleLocate"
+      />
+    </BaseDashboardCard>
 
     <OfflineBanner :offline="!isOnline" :stale="usingCache" />
 
@@ -195,26 +200,33 @@ const clearSearch = () => (searchQuery.value = '')
       <button type="button" class="weather-parent__clear" @click="clearSearch">지우기</button>
     </p>
 
-    <div class="weather-parent__grid">
-      <template v-if="loading && !displayCards.length">
-        <SkeletonCard v-for="n in 4" :key="n" height="168px" :lines="2" />
+    <!-- 날씨 현황: 같은 카드 프레임을 슬롯으로 재사용 -->
+    <BaseDashboardCard tone="bare" :padded="false">
+      <template #header>
+        <span>지역별 날씨 현황</span>
+        <span class="weather-parent__count">{{ filteredCards.length }}개 도시</span>
       </template>
-      <template v-else>
-        <WeatherCard
-          v-for="item in filteredCards"
-          :key="item.__badge === 'location' ? '__my_location' : item.city"
-          :data="item"
-          :badge="item.__badge ?? ''"
-          :favorite="favorites.includes(item.city)"
-          :selected="selectedCity === item.city"
-          :removable="item.__badge !== 'location'"
-          @toggle-favorite="weather.toggleFavorite"
-          @remove="handleRemove"
-          @select="handleSelect"
-          @open="handleOpen"
-        />
-      </template>
-    </div>
+      <div class="weather-parent__grid">
+        <template v-if="loading && !displayCards.length">
+          <SkeletonCard v-for="n in 4" :key="n" height="168px" :lines="2" />
+        </template>
+        <template v-else>
+          <WeatherCard
+            v-for="item in filteredCards"
+            :key="item.__badge === 'location' ? '__my_location' : item.city"
+            :data="item"
+            :badge="item.__badge ?? ''"
+            :favorite="favorites.includes(item.city)"
+            :selected="selectedCity === item.city"
+            :removable="item.__badge !== 'location'"
+            @toggle-favorite="weather.toggleFavorite"
+            @remove="handleRemove"
+            @select="handleSelect"
+            @open="handleOpen"
+          />
+        </template>
+      </div>
+    </BaseDashboardCard>
 
     <!-- 선택 상태는 카드가 시각적으로 표현하고, 스크린리더에는 문구로 알린다 -->
     <span class="sr-only" role="status" aria-live="polite">{{ statusText }}</span>
@@ -276,6 +288,12 @@ const clearSearch = () => (searchQuery.value = '')
 }
 .weather-parent__filter-info strong {
   color: var(--accent);
+}
+.weather-parent__count {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
 }
 .weather-parent__grid {
   display: grid;
