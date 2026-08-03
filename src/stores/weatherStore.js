@@ -8,6 +8,7 @@ import {
 } from '@/api/weather'
 import { getCurrentPosition } from '@/utils/geolocation'
 import { withCache } from '@/utils/cache'
+import { resolveCityName, hasHangul } from '@/data/cityIndex'
 
 const FAVORITES_KEY = 'skala-vue:favorites'
 const HISTORY_KEY = 'skala-vue:history'
@@ -78,17 +79,27 @@ export const useWeatherStore = defineStore('weather', () => {
     }
   }
 
-  const searchAndAdd = async (city, unit) => {
+  /**
+   * 도시 검색 후 카드 추가.
+   * OpenWeatherMap은 한글 도시명을 인식하지 못하므로, 색인에 있는 이름이면
+   * 영문명으로 바꿔 조회한다. 색인에 없는 한글 입력은 실패할 수밖에 없어
+   * 영문으로 다시 시도하도록 안내한다.
+   */
+  const searchAndAdd = async (input, unit) => {
     loading.value = true
     error.value = ''
+    const { query, resolved } = resolveCityName(input)
     try {
-      const result = await fetchCurrentWeatherByCity(city, unit)
+      const result = await fetchCurrentWeatherByCity(query, unit)
       pushHistory(result.city)
       cards.value = [result, ...cards.value.filter((c) => c.city !== result.city)]
       return result
     } catch (err) {
-      error.value = err.message
-      throw err
+      const needsEnglish = !resolved && hasHangul(query)
+      error.value = needsEnglish
+        ? `'${query}'을(를) 찾지 못했습니다. 영문 이름으로 검색하거나 자동완성 목록에서 선택해주세요.`
+        : err.message
+      throw new Error(error.value, { cause: err })
     } finally {
       loading.value = false
     }

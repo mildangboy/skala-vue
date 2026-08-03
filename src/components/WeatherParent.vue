@@ -10,6 +10,7 @@ import OfflineBanner from './OfflineBanner.vue'
 import { useConfigStore } from '@/stores/configStore'
 import { useWeatherStore } from '@/stores/weatherStore'
 import { useOnlineStatus } from '@/utils/network'
+import { cityMatchesQuery } from '@/data/cityIndex'
 
 const router = useRouter()
 const config = useConfigStore()
@@ -69,9 +70,10 @@ const displayCards = computed(() =>
    서버 조회(Enter)와 별개로, 이미 받아온 카드를 즉시 좁혀준다.
    즐겨찾기가 쌓였을 때 원하는 도시를 바로 찾기 위한 용도.       */
 const filteredCards = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
+  const q = searchQuery.value.trim()
   if (!q) return displayCards.value
-  return displayCards.value.filter((c) => (c.city ?? '').toLowerCase().includes(q))
+  // 카드의 도시명은 영문이지만 사용자는 한글로 칠 수 있어 양쪽으로 매칭한다
+  return displayCards.value.filter((c) => cityMatchesQuery(c.city ?? '', q))
 })
 
 // 검색어는 입력했지만 목록에 일치하는 카드가 없는 상태

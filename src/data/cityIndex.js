@@ -173,3 +173,40 @@ export const searchLocalCities = (query, limit = 12) => {
       local: true,
     }))
 }
+
+/** 한글이 포함되어 있는지 */
+export const hasHangul = (s) => /[ㄱ-ㅎ가-힣]/.test(s ?? '')
+
+/**
+ * 사용자가 입력한 도시명을 API 조회용 영문명으로 해석한다.
+ *
+ * OpenWeatherMap은 한글 도시명을 인식하지 못하므로, 자동완성에서 고르지 않고
+ * '대구'처럼 직접 입력한 뒤 Enter를 치면 404가 난다.
+ * 색인에 완전 일치하는 항목이 있으면 영문명으로 바꿔준다.
+ * (접두어 일치는 쓰지 않는다 — '대'가 Daegu로 단정되면 오히려 틀린 결과가 된다)
+ *
+ * @returns {{ query: string, resolved: boolean }}
+ */
+export const resolveCityName = (input) => {
+  const raw = (input ?? '').trim()
+  const q = norm(raw)
+  if (!q) return { query: raw, resolved: false }
+
+  const hit = CITY_INDEX.find((c) => norm(c.ko) === q || norm(c.en) === q)
+  return hit ? { query: hit.en, resolved: true } : { query: raw, resolved: false }
+}
+
+/**
+ * 카드 목록 필터링용 매칭.
+ * 카드에 담긴 도시명은 영문이지만, 사용자는 한글로 칠 수 있다.
+ * 색인을 통해 영문명 ↔ 한글명을 이어 붙여 양쪽 모두로 걸러지게 한다.
+ */
+export const cityMatchesQuery = (cityName, query) => {
+  const q = norm(query)
+  if (!q) return true
+  const en = norm(cityName)
+  if (en.includes(q)) return true
+
+  const entry = CITY_INDEX.find((c) => norm(c.en) === en)
+  return entry ? norm(entry.ko).includes(q) : false
+}
