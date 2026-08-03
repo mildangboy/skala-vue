@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Star, StarFilled, Close, Position, TopRight } from '@element-plus/icons-vue'
+import { Star, StarFilled, Close, Position } from '@element-plus/icons-vue'
 import { formatTemp } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { useConfigStore } from '@/stores/configStore'
@@ -52,15 +52,6 @@ const range = computed(() =>
           <el-icon><StarFilled v-if="favorite" /><Star v-else /></el-icon>
         </button>
         <button
-          type="button"
-          class="weather-card__icon-btn"
-          aria-label="상세 보기"
-          title="상세 보기"
-          @click="emit('open', data.city)"
-        >
-          <el-icon><TopRight /></el-icon>
-        </button>
-        <button
           v-if="removable"
           type="button"
           class="weather-card__icon-btn"
@@ -83,6 +74,39 @@ const range = computed(() =>
       </div>
       <p class="weather-card__desc">{{ data.description }}</p>
       <p class="weather-card__range">{{ range }}</p>
+
+      <!-- 선택 시 그 자리에서 펼쳐지는 상세 -->
+      <Transition name="expand">
+        <div v-if="selected" class="weather-card__detail">
+          <dl class="weather-card__metrics">
+            <div>
+              <dt>체감</dt>
+              <dd>{{ formatTemp(data.feelsLike, config.unit) }}</dd>
+            </div>
+            <div>
+              <dt>습도</dt>
+              <dd>{{ data.humidity != null ? data.humidity + '%' : '—' }}</dd>
+            </div>
+            <div>
+              <dt>바람</dt>
+              <dd>{{ data.windSpeed != null ? data.windSpeed + 'm/s' : '—' }}</dd>
+            </div>
+            <div>
+              <dt>기압</dt>
+              <dd>{{ data.pressure != null ? data.pressure + 'hPa' : '—' }}</dd>
+            </div>
+          </dl>
+          <el-button
+            type="primary"
+            size="small"
+            round
+            class="weather-card__more"
+            @click.stop="emit('open', data.city)"
+          >
+            상세 보기
+          </el-button>
+        </div>
+      </Transition>
     </template>
   </article>
 </template>
@@ -207,6 +231,47 @@ const range = computed(() =>
   margin: 3px 0 0;
   font-size: 12px;
   color: var(--text-muted);
+}
+.weather-card__detail {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--surface-border);
+}
+.weather-card__metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px 12px;
+  margin: 0 0 12px;
+}
+.weather-card__metrics div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.weather-card__metrics dt {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.weather-card__metrics dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.weather-card__more {
+  width: 100%;
+}
+.expand-enter-active,
+.expand-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
 }
 .weather-card__error {
   margin: 16px 0 0;

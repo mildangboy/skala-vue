@@ -1,5 +1,6 @@
 import client from './client'
 import { normalizeCurrentWeather, normalizeForecast } from '@/utils/format'
+import { searchLocalCities } from '@/data/cityIndex'
 
 // 도시 이름으로 현재 날씨 조회
 export const fetchCurrentWeatherByCity = async (city, unit = 'metric') => {
@@ -33,20 +34,49 @@ export const fetchForecastByCoords = async (lat, lon, unit = 'metric') => {
   return normalizeForecast(data)
 }
 
-// Geocoding API: 검색어 자동완성용 도시 목록
+/**
+ * 검색어 자동완성.
+ *
+ * 로컬 색인(한/영 접두어 매칭)을 먼저 보여주고 그 뒤에 Geocoding API 결과를 덧붙인다.
+ * API 단독으로는 'Dae'에 대구·대전이 나오지 않고 한글 입력도 매칭되지 않기 때문.
+ * 같은 도시가 양쪽에서 나오면 로컬 항목을 남긴다.
+ */
 export const searchCities = async (query) => {
-  if (!query?.trim()) return []
-  const { data } = await client.get('/geo/1.0/direct', {
-    params: { q: query, limit: 5 },
-  })
-  return (data ?? []).map((item) => ({
-    name: item.name,
-    country: item.country,
-    state: item.state ?? '',
-    lat: item.lat,
-    lon: item.lon,
-    label: [item.name, item.state, item.country].filter(Boolean).join(', '),
-  }))
+  const q = query?.trim()
+  if (!q) return []
+
+  const local = searchLocalCities(q)
+
+  let remote
+  try {
+    const { data } = await client.get('/geo/1.0/direct', {
+      params: { q, limit: 5 },
+    })
+    remote = (data ?? []).map((item) => ({
+      name: item.name,
+      country: item.country,
+      state: item.state ?? '',
+      lat: item.lat,
+      lon: item.lon,
+      label:
+        [item.local_names?.ko, item.name].filter(Boolean).join(' · ') +
+        `, ${[item.state, item.country].filter(Boolean).join(', ')}`,
+      local: false,
+    }))
+  } catch {
+    remote = [] // API가 실패해도 로컬 색인 결과는 그대로 보여준다
+  }
+
+  // 도시명+국가로 중복 제거 (로컬 우선)
+  const seen = new Set(local.map((c) => `${c.name.toLowerCase()}|${c.country}`))
+  const merged = [...local]
+  for (const r of remote) {
+    const key = `${r.name.toLowerCase()}|${r.country}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    merged.push(r)
+  }
+  return merged.slice(0, 8)
 }
 
 // 역지오코딩: 좌표 -> 지역명 (내 위치 파이프라인에서 사용)

@@ -20,8 +20,8 @@ const { isOnline } = useOnlineStatus()
 
 /* ── 반응형 상태 ───────────────────────────────────────────────
    searchQuery : 검색 입력값 (SearchBar와 v-model로 양방향 연결)
-   selectedCity: 카드 클릭으로 선택된 도시
-   statusText  : 화면 하단 상태바 문구                            */
+   selectedCity: 카드 클릭으로 선택된 도시 — 해당 카드가 그 자리에서 상세를 펼친다
+   statusText  : 선택 상태 문구 (스크린리더 안내 및 로그용)        */
 const searchQuery = ref('')
 const selectedCity = ref('')
 const statusText = ref('')
@@ -178,6 +178,9 @@ const clearSearch = () => (searchQuery.value = '')
       </template>
     </div>
 
+    <!-- 선택 상태는 카드가 시각적으로 표현하고, 스크린리더에는 문구로 알린다 -->
+    <span class="sr-only" role="status" aria-live="polite">{{ statusText }}</span>
+
     <!-- 검색어와 일치하는 카드가 없을 때 -->
     <el-empty v-if="noMatch" :description="`'${searchQuery}'와(과) 일치하는 도시가 없습니다`">
       <el-button type="primary" @click="handleSearch(searchQuery.trim())">
@@ -190,23 +193,6 @@ const clearSearch = () => (searchQuery.value = '')
       v-else-if="!loading && !displayCards.length"
       description="표시할 날씨가 없습니다. 도시를 검색해보세요."
     />
-
-    <!-- 상태바 -->
-    <Transition name="status">
-      <div v-if="statusText" class="status-bar" role="status">
-        <span class="status-bar__dot" />
-        {{ statusText }}
-        <el-button text size="small" @click="handleOpen(selectedCity)">상세보기</el-button>
-        <button
-          type="button"
-          class="status-bar__close"
-          aria-label="선택 해제"
-          @click="selectedCity = ''"
-        >
-          ✕
-        </button>
-      </div>
-    </Transition>
   </section>
 </template>
 
@@ -263,47 +249,17 @@ const clearSearch = () => (searchQuery.value = '')
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 16px;
+  align-items: start; /* 카드가 펼쳐져도 같은 행의 다른 카드가 늘어나지 않도록 */
 }
-
-/* 상태바 */
-.status-bar {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 11px 16px;
-  border-radius: var(--radius-pill);
-  background: var(--accent-soft);
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
-  font-size: 13px;
-  color: var(--text-primary);
-}
-.status-bar__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-}
-.status-bar__close {
-  margin-left: auto;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 13px;
-}
-.status-bar__close:hover {
-  color: var(--text-primary);
-}
-.status-enter-active,
-.status-leave-active {
-  transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
-}
-.status-enter-from,
-.status-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
