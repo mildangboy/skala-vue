@@ -76,11 +76,6 @@ const filteredCards = computed(() => {
   return displayCards.value.filter((c) => cityMatchesQuery(c.city ?? '', q))
 })
 
-// 검색어는 입력했지만 목록에 일치하는 카드가 없는 상태
-const noMatch = computed(
-  () => Boolean(searchQuery.value.trim()) && filteredCards.value.length === 0 && !loading.value,
-)
-
 /* ── watch: 선택된 도시 변화 감시 ──────────────────────────────
    선택이 바뀔 때만 상태바 문구를 갱신하고 그 사실을 로그로 남긴다. */
 watch(selectedCity, (city, prev) => {
@@ -178,12 +173,26 @@ const clearSearch = () => (searchQuery.value = '')
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
     <!-- 검색 중일 때 필터 상태 안내 -->
+    <!-- 검색어가 있을 때의 안내 한 줄.
+         목록에 없는 도시는 '없다'고 단정하지 않고 조회를 권한다 —
+         아직 추가하지 않은 도시를 검색하는 중일 수 있기 때문. -->
     <p v-if="searchQuery.trim()" class="weather-parent__filter-info">
       <template v-if="filteredCards.length">
-        '{{ searchQuery }}' 검색 결과 <strong>{{ filteredCards.length }}건</strong>
+        내 도시에서 <strong>{{ filteredCards.length }}건</strong> 일치
       </template>
-      <template v-else>목록에 일치하는 도시가 없습니다</template>
-      <button type="button" class="weather-parent__clear" @click="clearSearch">필터 해제</button>
+      <template v-else>
+        내 도시에 <strong>'{{ searchQuery.trim() }}'</strong>이(가) 없습니다.
+        <el-button
+          type="primary"
+          size="small"
+          round
+          :loading="loading"
+          @click="handleSearch(searchQuery.trim())"
+        >
+          날씨 불러오기
+        </el-button>
+      </template>
+      <button type="button" class="weather-parent__clear" @click="clearSearch">지우기</button>
     </p>
 
     <div class="weather-parent__grid">
@@ -210,17 +219,10 @@ const clearSearch = () => (searchQuery.value = '')
     <!-- 선택 상태는 카드가 시각적으로 표현하고, 스크린리더에는 문구로 알린다 -->
     <span class="sr-only" role="status" aria-live="polite">{{ statusText }}</span>
 
-    <!-- 검색어와 일치하는 카드가 없을 때 -->
-    <el-empty v-if="noMatch" :description="`'${searchQuery}'와(과) 일치하는 도시가 없습니다`">
-      <el-button type="primary" @click="handleSearch(searchQuery.trim())">
-        '{{ searchQuery.trim() }}' 날씨 새로 불러오기
-      </el-button>
-    </el-empty>
-
     <!-- 검색어가 없는데 카드도 없을 때 -->
     <el-empty
-      v-else-if="!loading && !displayCards.length"
-      description="표시할 날씨가 없습니다. 도시를 검색해보세요."
+      v-if="!loading && !displayCards.length && !searchQuery.trim()"
+      description="표시할 날씨가 없습니다. 위에서 도시를 검색해보세요."
     />
   </section>
 </template>
@@ -266,6 +268,7 @@ const clearSearch = () => (searchQuery.value = '')
 .weather-parent__filter-info {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 0;
   font-size: 13px;
