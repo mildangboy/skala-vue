@@ -5,6 +5,8 @@ import { storeToRefs } from 'pinia'
 import { Grid, List } from '@element-plus/icons-vue'
 import CircuitWeatherCard from '@/components/CircuitWeatherCard.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
+import RefreshButton from '@/components/RefreshButton.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import { useConfigStore } from '@/stores/configStore'
 import { useF1Store } from '@/stores/f1Store'
 import { formatTemp } from '@/utils/format'
@@ -35,17 +37,21 @@ const visibleRaces = computed(() => {
 })
 
 // 표시 중인 라운드의 서킷 날씨만 조회 (API 호출 최소화)
-const loadWeatherForVisible = () => {
+const loadWeatherForVisible = (force = false) => {
   const targets = visibleRaces.value.slice(0, 12)
-  if (targets.length) f1.loadCircuitWeather(targets, config.unit)
+  return targets.length ? f1.loadCircuitWeather(targets, config.unit, { force }) : Promise.resolve()
 }
+
+const { refresh, refreshing, lastUpdated, paused } = useAutoRefresh(() =>
+  loadWeatherForVisible(true),
+)
 
 onMounted(async () => {
   await f1.loadCalendar()
   loadWeatherForVisible()
 })
 
-watch([activeTab, () => config.unit], loadWeatherForVisible)
+watch([activeTab, () => config.unit], () => loadWeatherForVisible())
 
 const openCircuit = (circuitId) => router.push({ name: 'circuit-detail', params: { circuitId } })
 
@@ -80,14 +86,22 @@ const tableRows = computed(() =>
         </p>
       </div>
 
-      <el-radio-group v-model="viewMode" size="small">
-        <el-radio-button value="grid"
-          ><el-icon><Grid /></el-icon
-        ></el-radio-button>
-        <el-radio-button value="table"
-          ><el-icon><List /></el-icon
-        ></el-radio-button>
-      </el-radio-group>
+      <div class="calendar-view__actions">
+        <RefreshButton
+          :refreshing="refreshing"
+          :last-updated="lastUpdated"
+          :paused="paused"
+          @refresh="refresh"
+        />
+        <el-radio-group v-model="viewMode" size="small">
+          <el-radio-button value="grid">
+            <el-icon><Grid /></el-icon>
+          </el-radio-button>
+          <el-radio-button value="table">
+            <el-icon><List /></el-icon>
+          </el-radio-button>
+        </el-radio-group>
+      </div>
     </header>
 
     <el-progress
@@ -188,6 +202,12 @@ const tableRows = computed(() =>
   --el-tag-text-color: var(--accent);
   font-weight: 700;
   font-size: 10px;
+}
+.calendar-view__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .calendar-view__progress :deep(.el-progress-bar__inner) {
   background: linear-gradient(90deg, var(--amg-teal-deep), var(--amg-teal));

@@ -10,6 +10,8 @@ import { useConfigStore } from '@/stores/configStore'
 import { useF1Store } from '@/stores/f1Store'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
+import RefreshButton from '@/components/RefreshButton.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import TempChart from '@/components/TempChart.vue'
 import RaceConditionPanel from '@/components/RaceConditionPanel.vue'
 
@@ -75,6 +77,8 @@ const load = async () => {
   }
 }
 
+const { refresh, refreshing, lastUpdated, paused } = useAutoRefresh(load)
+
 onMounted(async () => {
   if (!f1.races.length) await f1.loadCalendar()
   load()
@@ -85,9 +89,17 @@ watch([() => route.params.circuitId, () => config.unit], load)
 
 <template>
   <div class="circuit-detail">
-    <el-button :icon="ArrowLeft" text @click="router.push({ name: 'f1-calendar' })">
-      캘린더로
-    </el-button>
+    <div class="detail-toolbar">
+      <el-button :icon="ArrowLeft" text @click="router.push({ name: 'f1-calendar' })">
+        캘린더로
+      </el-button>
+      <RefreshButton
+        :refreshing="refreshing"
+        :last-updated="lastUpdated"
+        :paused="paused"
+        @refresh="refresh"
+      />
+    </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <el-empty v-if="!race && !loading" description="해당 서킷을 찾을 수 없습니다" />
@@ -191,6 +203,12 @@ watch([() => route.params.circuitId, () => config.unit], load)
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .circuit-hero {
   display: flex;

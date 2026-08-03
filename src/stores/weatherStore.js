@@ -55,7 +55,7 @@ export const useWeatherStore = defineStore('weather', () => {
     favorites.value = favorites.value.filter((c) => c !== city)
   }
 
-  const loadDashboard = async (unit) => {
+  const loadDashboard = async (unit, { force = false } = {}) => {
     loading.value = true
     error.value = ''
     usingCache.value = false
@@ -63,7 +63,7 @@ export const useWeatherStore = defineStore('weather', () => {
     try {
       const results = await Promise.allSettled(
         cities.map((city) =>
-          withCache(`city:${city}:${unit}`, () => fetchCurrentWeatherByCity(city, unit)),
+          withCache(`city:${city}:${unit}`, () => fetchCurrentWeatherByCity(city, unit), { force }),
         ),
       )
       cards.value = results.map((r, idx) =>

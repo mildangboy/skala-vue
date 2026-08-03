@@ -56,7 +56,7 @@ export const useF1Store = defineStore('f1', () => {
   }
 
   /** 지정한 서킷들의 현재 날씨를 좌표 기반으로 병렬 조회 (캐시 적용) */
-  const loadCircuitWeather = async (targets, unit = 'metric') => {
+  const loadCircuitWeather = async (targets, unit = 'metric', { force = false } = {}) => {
     if (!targets?.length) return
     weatherLoading.value = true
     try {
@@ -65,7 +65,7 @@ export const useF1Store = defineStore('f1', () => {
           withCache(
             `circuit:${race.circuitId}:${unit}`,
             () => fetchCurrentWeatherByCoords(race.lat, race.lon, unit),
-            { ttl: 10 * 60 * 1000 },
+            { ttl: 10 * 60 * 1000, force },
           ),
         ),
       )

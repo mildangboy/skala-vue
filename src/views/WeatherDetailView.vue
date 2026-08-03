@@ -10,6 +10,8 @@ import { useConfigStore } from '@/stores/configStore'
 import { useWeatherStore } from '@/stores/weatherStore'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
+import RefreshButton from '@/components/RefreshButton.vue'
+import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import TempChart from '@/components/TempChart.vue'
 
 const route = useRoute()
@@ -50,14 +52,25 @@ const load = async () => {
   }
 }
 
+const { refresh, refreshing, lastUpdated, paused } = useAutoRefresh(load)
+
 onMounted(load)
 watch([cityParam, () => config.unit], load)
 </script>
 
 <template>
   <div class="detail">
-    <el-button :icon="ArrowLeft" text @click="router.push({ name: 'weather-home' })"
-      >홈으로</el-button
+    <div class="detail-toolbar">
+      <el-button :icon="ArrowLeft" text @click="router.push({ name: 'weather-home' })">
+        홈으로
+      </el-button>
+      <RefreshButton
+        :refreshing="refreshing"
+        :last-updated="lastUpdated"
+        :paused="paused"
+        @refresh="refresh"
+      />
+    </div>
     >
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
@@ -164,6 +177,18 @@ watch([cityParam, () => config.unit], load)
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.detail-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .detail__hero {
   padding: 30px 28px;

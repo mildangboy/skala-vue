@@ -85,3 +85,16 @@ export const normalizeForecast = (raw) => {
 
   return { timezone, daily, hourly }
 }
+
+/** 상대 시각 표기 (예: '방금 전', '3분 전') — 마지막 갱신 시각 표시용 */
+export const timeAgo = (timestamp, now = Date.now()) => {
+  if (!timestamp) return ''
+  const diffSec = Math.floor((now - timestamp) / 1000)
+  if (diffSec < 30) return '방금 전'
+  if (diffSec < 60) return `${diffSec}초 전`
+  const min = Math.floor(diffSec / 60)
+  if (min < 60) return `${min}분 전`
+  const hour = Math.floor(min / 60)
+  if (hour < 24) return `${hour}시간 전`
+  return `${Math.floor(hour / 24)}일 전`
+}

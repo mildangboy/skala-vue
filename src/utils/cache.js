@@ -38,10 +38,15 @@ export const cacheClear = () => {
  * 캐시 우선(stale-while-revalidate) 헬퍼.
  * 신선한 캐시가 있으면 즉시 반환하고, 없으면 fetcher 실행 후 캐싱한다.
  * fetcher가 실패하면 만료된 캐시라도 있으면 그것을 반환한다.
+ *
+ * force: true면 캐시를 건너뛰고 반드시 새로 조회한다.
+ *   자동/수동 새로고침이 TTL(10분)에 막혀 옛 데이터를 되돌려주는 것을 막기 위한 옵션.
+ *   단, 조회에 실패하면 기존 캐시로 폴백하는 동작은 그대로 유지한다.
  */
-export const withCache = async (key, fetcher, { ttl = DEFAULT_TTL } = {}) => {
+export const withCache = async (key, fetcher, { ttl = DEFAULT_TTL, force = false } = {}) => {
   const cached = cacheGet(key, ttl)
-  if (cached && !cached.stale) return { data: cached.value, fromCache: true, stale: false }
+  if (!force && cached && !cached.stale)
+    return { data: cached.value, fromCache: true, stale: false }
 
   try {
     const data = await fetcher()
