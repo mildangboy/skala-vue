@@ -1,3 +1,5 @@
+import { describeWeather } from './weatherText'
+
 // 공용 포맷/유틸 함수 모음 (모던 JS: 화살표 함수, 템플릿 리터럴, 삼항 연산자 활용)
 export const capitalize = (text = '') => (text ? text.charAt(0).toUpperCase() + text.slice(1) : '')
 
@@ -26,6 +28,7 @@ export const formatHour = (unixSeconds, timezoneOffsetSeconds = 0) =>
   })
 
 // 응답 데이터 중 필요한 값만 뽑아 화면 친화적 구조로 변환 (구조 분해 할당 + optional chaining + nullish coalescing)
+// 설명 문구는 API의 기계번역 대신 날씨 코드로 직접 매핑한다 (weatherText.js 참고)
 export const normalizeCurrentWeather = (raw) => {
   const { name, sys, main, weather, wind, dt, timezone, coord } = raw ?? {}
   const [primary] = weather ?? []
@@ -38,7 +41,8 @@ export const normalizeCurrentWeather = (raw) => {
     tempMax: main?.temp_max ?? null,
     humidity: main?.humidity ?? null,
     pressure: main?.pressure ?? null,
-    description: primary?.description ?? '',
+    conditionId: primary?.id ?? null,
+    description: describeWeather(primary?.id, primary?.description),
     icon: primary?.icon ?? '01d',
     windSpeed: wind?.speed ?? null,
     dt: dt ?? Math.floor(Date.now() / 1000),
@@ -70,7 +74,8 @@ export const normalizeForecast = (raw) => {
     return {
       day,
       icon: noonItem?.weather?.[0]?.icon ?? '01d',
-      description: noonItem?.weather?.[0]?.description ?? '',
+      conditionId: noonItem?.weather?.[0]?.id ?? null,
+      description: describeWeather(noonItem?.weather?.[0]?.id, noonItem?.weather?.[0]?.description),
       min: Math.min(...temps),
       max: Math.max(...temps),
       dt: noonItem?.dt,
