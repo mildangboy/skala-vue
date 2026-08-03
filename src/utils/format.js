@@ -1,4 +1,4 @@
-import { describeWeather } from './weatherText'
+import { describeWeather } from './weatherText.js'
 
 // 공용 포맷/유틸 함수 모음 (모던 JS: 화살표 함수, 템플릿 리터럴, 삼항 연산자 활용)
 export const capitalize = (text = '') => (text ? text.charAt(0).toUpperCase() + text.slice(1) : '')
@@ -82,10 +82,14 @@ export const normalizeForecast = (raw) => {
     }
   })
 
-  const hourly = list.slice(0, 8).map((item) => ({
+  // 5일 예보는 3시간 간격 40건이 온다. 이전에는 8건만 남겨 하루도 채우지 못했다.
+  // 전량을 넘기고 화면에서 필요한 만큼 잘라 쓰도록 한다.
+  const hourly = list.map((item) => ({
     dt: item.dt,
     temp: item.main?.temp ?? null,
     icon: item.weather?.[0]?.icon ?? '01d',
+    conditionId: item.weather?.[0]?.id ?? null,
+    pop: item.pop ?? null, // 강수 확률 (0~1)
   }))
 
   return { timezone, daily, hourly }

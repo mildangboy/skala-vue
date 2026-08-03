@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Sunny, Odometer, Watch } from '@element-plus/icons-vue'
 import { fetchCurrentWeatherByCoords, fetchForecastByCoords } from '@/api/weather'
-import { formatTemp, formatHour, formatWeekday } from '@/utils/format'
+import { formatTemp, formatHour, formatWeekday, formatDate } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { raceStartDate } from '@/data/f1Calendar2026'
 import { useConfigStore } from '@/stores/configStore'
@@ -42,6 +42,18 @@ const raceTimeLabel = computed(() =>
 )
 
 // 선택한 구간만큼 잘라서 차트에 전달
+// 시간별 스트립 — 날짜가 바뀌는 첫 항목에 날짜 라벨을 붙인다
+const hourlyItems = computed(() => {
+  const tz = forecast.value?.timezone ?? 0
+  let lastDay = null
+  return (forecast.value?.hourly ?? []).map((h) => {
+    const day = formatDate(h.dt, tz, { month: 'numeric', day: 'numeric' })
+    const isNewDay = day !== lastDay
+    lastDay = day
+    return { ...h, dayLabel: isNewDay ? day : '' }
+  })
+})
+
 const chartSlice = computed(() => (forecast.value?.hourly ?? []).slice(0, chartHours.value))
 const chartLabels = computed(() =>
   chartSlice.value.map((h) => formatHour(h.dt, forecast.value.timezone)),
@@ -165,11 +177,35 @@ watch([() => route.params.circuitId, () => config.unit], load)
           </div>
         </BaseDashboardCard>
 
+        <!-- 시간별 예보 -->
+        <BaseDashboardCard v-if="hourlyItems.length">
+          <template #header>
+            <span>시간별 예보</span>
+            <span class="hourly__hint">3시간 간격 · 좌우로 스크롤</span>
+          </template>
+          <div class="hourly">
+            <div
+              v-for="h in hourlyItems"
+              :key="h.dt"
+              class="hourly__item"
+              :class="{ 'is-day-start': h.dayLabel }"
+            >
+              <span class="hourly__day">{{ h.dayLabel || '\u00a0' }}</span>
+              <span class="hourly__time">{{ formatHour(h.dt, forecast.timezone) }}</span>
+              <span class="hourly__emoji">{{ iconEmoji(h.icon) }}</span>
+              <span class="hourly__temp mono-num">{{ formatTemp(h.temp, config.unit) }}</span>
+              <span class="hourly__pop mono-num">
+                {{ h.pop != null && h.pop > 0 ? Math.round(h.pop * 100) + '%' : '\u00a0' }}
+              </span>
+            </div>
+          </div>
+        </BaseDashboardCard>
+
         <!-- Chart.js 기온 추이 -->
         <BaseDashboardCard v-if="chartValues.length">
           <template #header>
             <span
-              ><el-icon><Odometer /></el-icon> 24시간 기온 추이</span
+              ><el-icon><Odometer /></el-icon> 기온 추이</span
             >
           </template>
           <TempChart :labels="chartLabels" :values="chartValues" :unit-symbol="config.unitSymbol" />
@@ -296,6 +332,62 @@ watch([() => route.params.circuitId, () => config.unit], load)
   font-size: 19px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+.hourly {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+.hourly__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 58px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  scroll-snap-align: start;
+  transition: background 0.2s ease;
+}
+.hourly__item:hover {
+  background: var(--accent-soft);
+}
+.hourly__item.is-day-start {
+  border-left: 1px solid var(--surface-border);
+}
+.hourly__item.is-day-start:first-child {
+  border-left: none;
+}
+.hourly__day {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.hourly__time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hourly__emoji {
+  font-size: 22px;
+}
+.hourly__temp {
+  font-size: 15px;
+  font-weight: 600;
+}
+.hourly__pop {
+  font-size: 10px;
+  color: #4aa8ff;
+  font-weight: 600;
+}
+.hourly__hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
 }
 .daily {
   list-style: none;

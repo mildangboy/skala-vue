@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ArrowLeft, Star, StarFilled, Odometer } from '@element-plus/icons-vue'
 import { fetchCurrentWeatherByCity, fetchForecastByCity } from '@/api/weather'
-import { formatTemp, formatHour, formatWeekday } from '@/utils/format'
+import { formatTemp, formatHour, formatWeekday, formatDate } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { useConfigStore } from '@/stores/configStore'
 import { useWeatherStore } from '@/stores/weatherStore'
@@ -28,6 +28,18 @@ const chartHours = ref(8) // 차트 표시 구간
 
 const cityParam = computed(() => route.params.city)
 const isFav = computed(() => favorites.value.includes(current.value?.city))
+
+// 시간별 스트립 — 날짜가 바뀌는 첫 항목에 날짜 라벨을 붙인다
+const hourlyItems = computed(() => {
+  const tz = forecast.value?.timezone ?? 0
+  let lastDay = null
+  return (forecast.value?.hourly ?? []).map((h) => {
+    const day = formatDate(h.dt, tz, { month: 'numeric', day: 'numeric' })
+    const isNewDay = day !== lastDay
+    lastDay = day
+    return { ...h, dayLabel: isNewDay ? day : '' }
+  })
+})
 
 const chartSlice = computed(() => (forecast.value?.hourly ?? []).slice(0, chartHours.value))
 const chartLabels = computed(() =>
@@ -71,7 +83,6 @@ watch([cityParam, () => config.unit], load)
         @refresh="refresh"
       />
     </div>
-    >
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
     <SkeletonCard v-if="loading" height="220px" :lines="3" />
@@ -102,12 +113,24 @@ watch([cityParam, () => config.unit], load)
 
       <!-- 시간별 예보 스트립 -->
       <BaseDashboardCard v-if="forecast?.hourly?.length">
-        <template #header><span>시간별 예보</span></template>
+        <template #header>
+          <span>시간별 예보</span>
+          <span class="hourly__hint">3시간 간격 · 좌우로 스크롤</span>
+        </template>
         <div class="hourly">
-          <div v-for="h in forecast.hourly" :key="h.dt" class="hourly__item">
+          <div
+            v-for="h in hourlyItems"
+            :key="h.dt"
+            class="hourly__item"
+            :class="{ 'is-day-start': h.dayLabel }"
+          >
+            <span class="hourly__day">{{ h.dayLabel || '\u00a0' }}</span>
             <span class="hourly__time">{{ formatHour(h.dt, forecast.timezone) }}</span>
             <span class="hourly__emoji">{{ iconEmoji(h.icon) }}</span>
             <span class="hourly__temp mono-num">{{ formatTemp(h.temp, config.unit) }}</span>
+            <span class="hourly__pop mono-num">
+              {{ h.pop != null && h.pop > 0 ? Math.round(h.pop * 100) + '%' : '\u00a0' }}
+            </span>
           </div>
         </div>
       </BaseDashboardCard>
@@ -238,16 +261,38 @@ watch([cityParam, () => config.unit], load)
 }
 .hourly {
   display: flex;
-  gap: 20px;
+  gap: 4px;
   overflow-x: auto;
-  padding-bottom: 6px;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
 }
 .hourly__item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
-  min-width: 52px;
+  gap: 6px;
+  min-width: 58px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  scroll-snap-align: start;
+  transition: background 0.2s ease;
+}
+.hourly__item:hover {
+  background: var(--accent-soft);
+}
+/* 날짜가 바뀌는 지점에 구분선 */
+.hourly__item.is-day-start {
+  border-left: 1px solid var(--surface-border);
+}
+.hourly__item.is-day-start:first-child {
+  border-left: none;
+}
+.hourly__day {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  white-space: nowrap;
 }
 .hourly__time {
   font-size: 12px;
@@ -259,6 +304,18 @@ watch([cityParam, () => config.unit], load)
 .hourly__temp {
   font-size: 15px;
   font-weight: 600;
+}
+.hourly__pop {
+  font-size: 10px;
+  color: #4aa8ff;
+  font-weight: 600;
+}
+.hourly__hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: 0;
 }
 .chart-range {
   display: flex;
