@@ -1,4 +1,5 @@
 <script setup>
+import { nextTick, ref } from 'vue'
 import { Search, Position } from '@element-plus/icons-vue'
 import { searchCities } from '@/api/weather'
 
@@ -9,6 +10,28 @@ const emit = defineEmits(['search', 'locate'])
 
 // 검색어는 부모(WeatherParent)가 목록 필터링에도 쓰므로 v-model로 끌어올린다
 const keyword = defineModel({ type: String, default: '' })
+
+const autocompleteRef = ref(null)
+
+/**
+ * 후보 목록을 닫는다.
+ *
+ * el-autocomplete의 close()는 activated 플래그만 내리는데, Enter 키는 내부
+ * handleKeyEnter가 다시 activated = true로 올리고 후보를 재조회한다. 그래서
+ * close()만으로는 Enter 직후 목록이 남는다.
+ * 표시 조건이 `suggestions.length > 0 && activated`이므로, 노출된 suggestions를
+ * 직접 비워 확실히 닫는다. (내부 재조회가 끝난 뒤 실행되도록 다음 틱에 처리)
+ */
+const closeSuggestions = () => {
+  const ac = autocompleteRef.value
+  if (!ac) return
+  ac.close?.()
+  nextTick(() => {
+    ac.close?.()
+    if (ac.suggestions) ac.suggestions.length = 0
+    if (ac.highlightedIndex !== undefined) ac.highlightedIndex = -1
+  })
+}
 
 // el-autocomplete 비동기 후보 조회 (OpenWeatherMap Geocoding API)
 const fetchSuggestions = async (query, callback) => {
@@ -35,12 +58,14 @@ const handleSelect = (item) => {
   const city = (item.name ?? item.value ?? '').trim()
   if (!city) return
   keyword.value = city // 입력창 표시용
+  closeSuggestions()
   emit('search', city) // 조회는 모델 왕복을 기다리지 않고 직접 전달
 }
 
 const submit = () => {
   const city = keyword.value.trim()
   if (!city) return
+  closeSuggestions()
   emit('search', city)
 }
 </script>
@@ -48,6 +73,7 @@ const submit = () => {
 <template>
   <div class="search-bar">
     <el-autocomplete
+      ref="autocompleteRef"
       v-model="keyword"
       class="search-bar__input"
       size="large"
