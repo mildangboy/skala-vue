@@ -130,6 +130,13 @@ PASS  NotFoundView         (2271 chars)
 
 > `vite.config.js`의 `REPO_NAME`이 실제 저장소 이름과 일치해야 정적 경로가 맞습니다.
 
+### SPA 라우팅과 404
+
+GitHub Pages는 정적 파일 서버라 `/f1` 같은 경로에 해당하는 파일이 없으면 404를 돌려줍니다.
+History 모드 SPA는 이 경로를 앱이 처리해야 하므로, 빌드 시 `index.html`을 `404.html`로
+복사합니다(`vite.config.js`의 `github-pages-spa-fallback` 플러그인). 덕분에 하위 경로로
+직접 접속하거나 새로고침해도 앱이 부팅되어 라우터가 경로를 처리합니다.
+
 ## 보안
 
 `.env`는 `.gitignore`에 포함되어 API 키가 Git에 업로드되지 않습니다.
