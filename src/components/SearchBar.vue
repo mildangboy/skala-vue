@@ -114,11 +114,20 @@ const submit = () => {
 .search-bar__input :deep(.el-input__wrapper) {
   border-radius: var(--radius-pill);
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--surface-border) inset;
+  box-shadow:
+    0 0 0 1px var(--surface-border) inset,
+    var(--glass-specular);
   backdrop-filter: var(--blur-glass);
+  transition:
+    box-shadow 0.25s ease,
+    background 0.25s ease;
 }
 .search-bar__input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1.5px var(--accent) inset;
+  background: var(--surface-strong);
+  box-shadow:
+    0 0 0 1.5px var(--accent) inset,
+    0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent),
+    var(--glass-specular-strong);
 }
 .search-bar__input :deep(.el-input__inner) {
   color: var(--text-primary);
@@ -128,6 +137,8 @@ const submit = () => {
   background: var(--surface);
   border-color: var(--surface-border);
   color: var(--accent);
+  box-shadow: var(--glass-specular);
+  backdrop-filter: var(--blur-glass);
 }
 .search-bar__locate:hover {
   background: var(--accent-soft);

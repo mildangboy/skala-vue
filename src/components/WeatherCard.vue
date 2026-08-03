@@ -31,8 +31,12 @@ const range = computed(() => {
 
 <template>
   <article
-    class="weather-card"
-    :class="{ 'weather-card--error': hasError, 'is-selected': selected }"
+    class="weather-card liquid-glass"
+    :class="{
+      'liquid-glass--interactive': !hasError,
+      'weather-card--error': hasError,
+      'is-selected': selected,
+    }"
     :aria-pressed="selected"
     @click="!hasError && emit('select', data.city)"
   >
@@ -118,25 +122,12 @@ const range = computed(() => {
 </template>
 
 <style scoped>
+/* 재질(배경·반사광·호버)은 전역 .liquid-glass에 위임하고
+   여기서는 모양과 배치만 정의한다. */
 .weather-card {
-  position: relative;
   padding: 18px 20px 20px;
   border-radius: var(--radius-card);
-  border: 1px solid var(--surface-border);
-  background: var(--surface);
-  backdrop-filter: var(--blur-glass);
-  -webkit-backdrop-filter: var(--blur-glass);
-  box-shadow: var(--surface-shadow);
   cursor: pointer;
-  transition:
-    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
-}
-.weather-card:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--accent) 42%, transparent);
-  box-shadow: 0 16px 40px rgba(0, 166, 143, 0.16);
 }
 .weather-card.is-selected {
   border-color: var(--accent);

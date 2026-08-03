@@ -126,10 +126,14 @@ watch(
   position: sticky;
   top: 0;
   z-index: 30;
-  background: color-mix(in srgb, var(--bg-base) 72%, transparent);
+  background: color-mix(in srgb, var(--bg-base) 62%, transparent);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   border-bottom: 1px solid var(--surface-border);
+  /* 헤더 하단에 얇은 반사광을 둬 유리판이 떠 있는 느낌을 준다 */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 12px rgba(0, 0, 0, 0.06);
 }
 .app-header__inner {
   max-width: 1120px;

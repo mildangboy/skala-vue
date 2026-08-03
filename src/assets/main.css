@@ -17,9 +17,30 @@ a {
 }
 
 /* Element Plus 다크모드 보정 */
-html.dark .el-dialog {
+/* 다이얼로그·서랍도 같은 유리 재질로 통일 */
+.el-dialog,
+.el-drawer {
   background: var(--surface-strong);
   backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow), var(--glass-specular);
+}
+.el-dialog {
+  border-radius: var(--radius-card);
+}
+.el-overlay {
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+/* 메시지 박스와 토스트도 동일 재질 */
+.el-message-box,
+.el-message {
+  background: var(--surface-strong);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow), var(--glass-specular);
 }
 
 /* 모바일 메뉴 서랍 — 테마 배경/여백 맞춤 */
@@ -158,4 +179,99 @@ html.dark .el-empty__description p {
 .el-button.is-text:hover {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Liquid Glass 재질
+   유리 한 장은 세 겹으로 만든다.
+     1) 반투명 배경 + backdrop blur  — 뒤가 비쳐 보이는 몸통
+     2) ::before 시트 그라디언트      — 위에서 들어오는 빛
+     3) inset 그림자(스페큘러)        — 가장자리에 맺히는 반사광
+   Chromium에서는 여기에 SVG 굴절이 얹혀 배경이 테두리에서 휜다.
+   ══════════════════════════════════════════════════════════════ */
+.liquid-glass {
+  position: relative;
+  isolation: isolate;
+  background-color: var(--surface);
+  background-image: linear-gradient(var(--glass-tint), var(--glass-tint));
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--surface-shadow), var(--glass-specular);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--blur-glass);
+}
+
+/* 빛이 스치는 면 — 위쪽이 밝고 아래로 갈수록 사라진다 */
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 굴절을 지원하는 브라우저에서만 SVG 필터를 배경에 얹는다 */
+html.glass-refraction .liquid-glass {
+  backdrop-filter: url(#glass-refract) var(--blur-glass);
+}
+
+/* 상호작용 요소는 반사광을 조금 더 세게 줘 만질 수 있다는 인상을 준다 */
+.liquid-glass--interactive {
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s ease,
+    border-color 0.28s ease;
+}
+.liquid-glass--interactive:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow:
+    0 2px 2px rgba(0, 0, 0, 0.06),
+    0 16px 40px color-mix(in srgb, var(--accent) 20%, transparent),
+    var(--glass-specular-strong);
+}
+.liquid-glass--interactive:active {
+  transform: translateY(-1px);
+}
+
+/* 배경 자체가 유리 뒤에서 은은하게 흐르도록 — 재질감의 바탕이 된다 */
+@media (prefers-reduced-motion: no-preference) {
+  body::before {
+    content: '';
+    position: fixed;
+    inset: -20%;
+    z-index: -1;
+    background:
+      radial-gradient(
+        38% 32% at 18% 22%,
+        color-mix(in srgb, var(--accent) 26%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        32% 28% at 82% 12%,
+        color-mix(in srgb, var(--amg-teal) 18%, transparent),
+        transparent 68%
+      ),
+      radial-gradient(
+        42% 36% at 62% 88%,
+        color-mix(in srgb, var(--accent) 16%, transparent),
+        transparent 72%
+      );
+    filter: blur(28px);
+    animation: glass-drift 26s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+}
+
+@keyframes glass-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2%, -1.5%, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(-1.5%, 2%, 0) scale(1.02);
+  }
 }

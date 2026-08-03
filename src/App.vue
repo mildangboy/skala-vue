@@ -1,6 +1,7 @@
 <script setup>
 import AppHeader from '@/components/AppHeader.vue'
 import AppFooter from '@/components/AppFooter.vue'
+import GlassFilters from '@/components/GlassFilters.vue'
 import { useThemeStore } from '@/stores/themeStore'
 
 // 앱 시작 시 테마 스토어를 초기화해 저장된 설정을 즉시 적용
@@ -9,6 +10,9 @@ useThemeStore()
 
 <template>
   <div class="app-shell">
+    <!-- 굴절 필터 정의 + 지원 여부 감지 (화면에 보이지 않음) -->
+    <GlassFilters />
+
     <AppHeader />
 
     <main class="app-main">

@@ -14,7 +14,12 @@ const emit = defineEmits(['click'])
     class="glass-card"
     :class="[
       `glass-card--${tone}`,
-      { 'glass-card--clickable': clickable, 'glass-card--padded': padded },
+      {
+        'liquid-glass': tone !== 'bare',
+        'liquid-glass--interactive': clickable && tone !== 'bare',
+        'glass-card--clickable': clickable,
+        'glass-card--padded': padded,
+      },
     ]"
     @click="clickable && emit('click')"
   >
@@ -29,17 +34,10 @@ const emit = defineEmits(['click'])
 </template>
 
 <style scoped>
+/* 배경·테두리·반사광은 전역 .liquid-glass가 담당하고
+   여기서는 모양(반경)과 레이아웃만 정의한다. */
 .glass-card {
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
   border-radius: var(--radius-card);
-  backdrop-filter: var(--blur-glass);
-  -webkit-backdrop-filter: var(--blur-glass);
-  box-shadow: var(--surface-shadow);
-  transition:
-    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
 }
 .glass-card--padded {
   padding: 18px 20px;
@@ -60,14 +58,7 @@ const emit = defineEmits(['click'])
 .glass-card--clickable {
   cursor: pointer;
 }
-.glass-card--clickable:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  box-shadow: 0 16px 44px rgba(0, 166, 143, 0.18);
-}
-.glass-card--clickable:active {
-  transform: translateY(-1px);
-}
+
 .glass-card__header {
   display: flex;
   align-items: center;
