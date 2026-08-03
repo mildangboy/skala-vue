@@ -24,9 +24,18 @@ const fetchSuggestions = async (query, callback) => {
   }
 }
 
+/**
+ * 자동완성 항목 선택.
+ * keyword에 쓴 뒤 submit()으로 되읽으면 안 된다 — defineModel은 부모로 이벤트를
+ * 보내고 prop으로 돌아오는 왕복 구조라, 같은 틱에서는 아직 이전 값이 읽힌다.
+ * ('Fukuoka'를 골라도 직전에 입력한 'Fuku'로 조회되던 원인)
+ * 선택한 값을 그대로 전달한다.
+ */
 const handleSelect = (item) => {
-  keyword.value = item.name ?? item.value
-  submit()
+  const city = (item.name ?? item.value ?? '').trim()
+  if (!city) return
+  keyword.value = city // 입력창 표시용
+  emit('search', city) // 조회는 모델 왕복을 기다리지 않고 직접 전달
 }
 
 const submit = () => {

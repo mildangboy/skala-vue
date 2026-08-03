@@ -101,8 +101,12 @@ watchEffect(() => {
 
 const handleSearch = async (city) => {
   try {
-    await weather.searchAndAdd(city, config.unit)
-    ElMessage.success({ message: `${city} 날씨를 불러왔습니다`, duration: 2000 })
+    const result = await weather.searchAndAdd(city, config.unit)
+    // 검색 성공 시 필터를 해제한다.
+    // API가 돌려주는 도시명이 입력과 다를 수 있어(예: 'Fukuoka' 요청 → 'Fukuoka-shi' 응답)
+    // 필터가 남아 있으면 방금 추가된 카드가 오히려 가려진다.
+    searchQuery.value = ''
+    ElMessage.success({ message: `${result.city} 날씨를 불러왔습니다`, duration: 2000 })
   } catch (err) {
     ElMessage.error(err.message)
   }
