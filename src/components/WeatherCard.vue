@@ -16,11 +16,17 @@ const emit = defineEmits(['toggle-favorite', 'open', 'remove', 'select'])
 
 const config = useConfigStore()
 const hasError = computed(() => Boolean(props.data.failed))
-const range = computed(() =>
-  props.data.tempMin != null && props.data.tempMax != null
-    ? `최고 ${formatTemp(props.data.tempMax, config.unit)} · 최저 ${formatTemp(props.data.tempMin, config.unit)}`
-    : '',
-)
+/**
+ * 대시보드 카드는 현재 날씨만 가지고 있어 하루 최고·최저를 알 수 없다.
+ * obsMin/obsMax는 같은 도시권 내 관측지점 간 편차라, 대부분의 도시에서는
+ * 현재 기온과 같은 값이 온다. 의미 있는 폭이 있을 때만 노출한다.
+ */
+const range = computed(() => {
+  const { obsMin, obsMax } = props.data
+  if (obsMin == null || obsMax == null) return ''
+  if (Math.abs(obsMax - obsMin) < 0.5) return '' // 관측 편차가 없으면 숨김
+  return `관측 ${formatTemp(obsMin, config.unit)} ~ ${formatTemp(obsMax, config.unit)}`
+})
 </script>
 
 <template>

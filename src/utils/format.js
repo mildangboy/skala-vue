@@ -37,8 +37,12 @@ export const normalizeCurrentWeather = (raw) => {
     country: sys?.country ?? '',
     temp: main?.temp ?? null,
     feelsLike: main?.feels_like ?? null,
-    tempMin: main?.temp_min ?? null,
-    tempMax: main?.temp_max ?? null,
+    // 주의: current weather의 temp_min/max는 '오늘의 최고·최저'가 아니라
+    // 대도시권 내 여러 관측지점 중 현재 시각의 최저·최고다.
+    // 관측지점이 하나뿐인 도시에서는 현재 기온과 같은 값이 온다.
+    // 하루 최고·최저는 예보 데이터에서 별도로 계산한다(dailyRangeOf 참고).
+    obsMin: main?.temp_min ?? null,
+    obsMax: main?.temp_max ?? null,
     humidity: main?.humidity ?? null,
     pressure: main?.pressure ?? null,
     conditionId: primary?.id ?? null,
@@ -106,4 +110,15 @@ export const timeAgo = (timestamp, now = Date.now()) => {
   const hour = Math.floor(min / 60)
   if (hour < 24) return `${hour}시간 전`
   return `${Math.floor(hour / 24)}일 전`
+}
+
+/**
+ * 예보에서 특정 날짜(기본: 첫 날 = 오늘)의 최고·최저를 뽑는다.
+ * 예보는 현재 시각 이후만 담고 있으므로 이미 지나간 시간대는 반영되지 않는다.
+ * 그래서 화면에서는 '오늘 예보' 기준임을 함께 밝힌다.
+ */
+export const dailyRangeOf = (forecast, index = 0) => {
+  const day = forecast?.daily?.[index]
+  if (!day || !Number.isFinite(day.min) || !Number.isFinite(day.max)) return null
+  return { min: day.min, max: day.max }
 }

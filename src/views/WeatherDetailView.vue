@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ArrowLeft, Star, StarFilled, Odometer } from '@element-plus/icons-vue'
 import { fetchCurrentWeatherByCity, fetchForecastByCity } from '@/api/weather'
-import { formatTemp, formatHour, formatWeekday, formatDate } from '@/utils/format'
+import { formatTemp, formatHour, formatWeekday, formatDate, dailyRangeOf } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { useConfigStore } from '@/stores/configStore'
 import { useWeatherStore } from '@/stores/weatherStore'
@@ -40,6 +40,9 @@ const hourlyItems = computed(() => {
     return { ...h, dayLabel: isNewDay ? day : '' }
   })
 })
+
+// 오늘 최고·최저는 현재 날씨가 아니라 예보에서 계산한다 (format.js 주석 참고)
+const todayRange = computed(() => dailyRangeOf(forecast.value))
 
 const chartSlice = computed(() => (forecast.value?.hourly ?? []).slice(0, chartHours.value))
 const chartLabels = computed(() =>
@@ -105,9 +108,11 @@ watch([cityParam, () => config.unit], load)
         <div class="detail__temp temp-display">{{ formatTemp(current.temp, config.unit) }}</div>
         <p class="detail__desc">{{ iconEmoji(current.icon) }} {{ current.description }}</p>
         <p class="detail__range mono-num">
-          최고 {{ formatTemp(current.tempMax, config.unit) }} · 최저
-          {{ formatTemp(current.tempMin, config.unit) }} · 체감
-          {{ formatTemp(current.feelsLike, config.unit) }}
+          <template v-if="todayRange">
+            오늘 예보 최고 {{ formatTemp(todayRange.max, config.unit) }} · 최저
+            {{ formatTemp(todayRange.min, config.unit) }} ·
+          </template>
+          체감 {{ formatTemp(current.feelsLike, config.unit) }}
         </p>
       </section>
 
