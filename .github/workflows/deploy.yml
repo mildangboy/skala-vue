@@ -49,6 +49,11 @@ jobs:
         env:
           VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
           VITE_OPENWEATHER_BASE_URL: https://api.openweathermap.org
+          # 아래 세 값이 없으면 배포본에서 구글 로그인이 비활성화되고
+          # 플랜은 기기 저장으로만 동작한다 (앱은 그대로 뜬다).
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
