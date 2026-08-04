@@ -13,20 +13,101 @@ const props = defineProps({
   label: { type: String, default: '' },
 })
 
-const path = computed(() => shapeOf(props.circuitId))
+/* ── 좌표 읽기 ──────────────────────────────────────────────
+   저장된 경로는 크기를 줄이려고 상대 좌표(l)를 쓴다. 절대 좌표로 되돌린다. */
+const toPoints = (d) => {
+  const closed = d.endsWith('z') || d.endsWith('Z')
+  const [head, rest = ''] = d.replace(/[zZ]$/, '').split(/[lL]/)
+  const start = head.replace(/^M/, '').split(',').map(Number)
+  const pts = [start]
+  let [cx, cy] = start
+  for (const pair of rest.trim().split(/\s+/)) {
+    if (!pair) continue
+    const [dx, dy] = pair.split(',').map(Number)
+    cx += dx
+    cy += dy
+    pts.push([cx, cy])
+  }
+  return { pts, closed }
+}
+
+/**
+ * 꺾은선을 부드러운 곡선으로 바꾼다 (Catmull-Rom → 3차 베지에).
+ *
+ * 서킷 좌표는 지도에서 딴 꼭짓점이라 그대로 이으면 각져 보인다.
+ * 각 점을 지나면서 앞뒤 점의 방향으로 제어점을 잡으면
+ * 원래 모양을 유지한 채 코너만 둥글어진다.
+ */
+const smooth = (pts, closed, tension = 0.5) => {
+  if (pts.length < 3) return ''
+  const at = (i) =>
+    closed ? pts[(i + pts.length) % pts.length] : pts[Math.min(Math.max(i, 0), pts.length - 1)]
+
+  const last = closed ? pts.length : pts.length - 1
+  let d = `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`
+  for (let i = 0; i < last; i++) {
+    const p0 = at(i - 1)
+    const p1 = at(i)
+    const p2 = at(i + 1)
+    const p3 = at(i + 2)
+    const c1x = p1[0] + ((p2[0] - p0[0]) / 6) * tension * 2
+    const c1y = p1[1] + ((p2[1] - p0[1]) / 6) * tension * 2
+    const c2x = p2[0] - ((p3[0] - p1[0]) / 6) * tension * 2
+    const c2y = p2[1] - ((p3[1] - p1[1]) / 6) * tension * 2
+    d += `C${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`
+  }
+  return d + (closed ? 'Z' : '')
+}
+
+const path = computed(() => {
+  const raw = shapeOf(props.circuitId)
+  if (!raw) return ''
+  const { pts, closed } = toPoints(raw)
+  return smooth(pts, closed)
+})
+
+/**
+ * 트랙을 도는 빛줄기.
+ *
+ * 길이가 다른 선 여러 겹을 같은 속도로 돌린다.
+ * 머리 쪽은 짧고 진하게, 뒤로 갈수록 길고 옅게 깔면
+ * 하나의 선이 흐려지며 끌리는 것처럼 보인다.
+ *
+ * 값은 전체 길이를 1로 본 비율이다 — path에 pathLength="1"을 주면
+ * 서킷마다 다른 실제 길이와 무관하게 같은 비율로 그려진다.
+ * (길이를 재서 CSS 변수로 넘기면 keyframe에서 보간되지 않아 애니메이션이 멈춘다)
+ */
+const COMET = [
+  { len: 0.18, width: 1.5, opacity: 0.12 },
+  { len: 0.1, width: 1.8, opacity: 0.28 },
+  { len: 0.045, width: 2, opacity: 0.6 },
+  { len: 0.014, width: 2.4, opacity: 1 },
+]
 </script>
 
 <template>
+  <!-- 곡선 제어점이 0~100 상자를 최대 8.2까지 벗어나므로 여백을 10 준다 -->
   <svg
     v-if="path"
     class="circuit-outline"
-    viewBox="-7 -7 114 114"
+    viewBox="-10 -10 120 120"
     role="img"
     :aria-label="label ? `${label} 서킷 레이아웃` : '서킷 레이아웃'"
   >
-    <!-- 뒤에 옅게 한 겹 깔아 트랙이 떠 보이게 한다 -->
-    <path class="circuit-outline__glow" :d="path" />
-    <path class="circuit-outline__line" :d="path" />
+    <!-- 트랙 -->
+    <path class="circuit-outline__track" :d="path" />
+
+    <!-- 트랙을 도는 빛줄기 (겹칠수록 꼬리가 흐려진다) -->
+    <path
+      v-for="(c, i) in COMET"
+      :key="i"
+      class="circuit-outline__comet"
+      :d="path"
+      pathLength="1"
+      :stroke-dasharray="`${c.len} ${1 - c.len}`"
+      :stroke-width="c.width"
+      :opacity="c.opacity"
+    />
   </svg>
 </template>
 
@@ -36,34 +117,45 @@ const path = computed(() => shapeOf(props.circuitId))
   height: 100%;
   overflow: visible;
 }
-.circuit-outline__glow,
-.circuit-outline__line {
+.circuit-outline__track,
+.circuit-outline__comet {
   fill: none;
-  stroke-linejoin: round;
   stroke-linecap: round;
+  stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
 }
-.circuit-outline__glow {
+.circuit-outline__track {
   stroke: var(--accent);
-  stroke-width: 7px;
-  opacity: 0.16;
+  stroke-width: 1.6px;
+  opacity: 0.26;
 }
-.circuit-outline__line {
+.circuit-outline__comet {
   stroke: var(--accent);
-  stroke-width: 2px;
 }
 
-/* 처음 나타날 때 트랙을 한 바퀴 그린다 */
 @media (prefers-reduced-motion: no-preference) {
-  .circuit-outline__line {
-    stroke-dasharray: 600;
-    stroke-dashoffset: 600;
-    animation: circuit-draw 1.8s ease-out forwards;
+  .circuit-outline__comet {
+    animation: circuit-run 5s linear infinite;
   }
 }
-@keyframes circuit-draw {
-  to {
+/* pathLength=1이라 offset -1이 정확히 한 바퀴다 */
+@keyframes circuit-run {
+  from {
     stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+/* 움직임을 줄이는 설정에서는 트랙만 또렷하게 보여준다 */
+@media (prefers-reduced-motion: reduce) {
+  .circuit-outline__track {
+    opacity: 0.85;
+    stroke-width: 2px;
+  }
+  .circuit-outline__comet {
+    display: none;
   }
 }
 </style>

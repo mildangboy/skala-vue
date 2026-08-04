@@ -49,11 +49,21 @@ const goDetail = () => {
       >
     </header>
 
-    <h1 class="race-hero__title">{{ race.name }}</h1>
-    <p class="race-hero__circuit">
-      <el-icon><LocationInformation /></el-icon>
-      {{ race.circuit }} · {{ race.locality }}, {{ race.country }}
-    </p>
+    <div class="race-hero__headline">
+      <div class="race-hero__headline-text">
+        <h1 class="race-hero__title">{{ race.name }}</h1>
+        <p class="race-hero__circuit">
+          <el-icon><LocationInformation /></el-icon>
+          {{ race.circuit }} · {{ race.locality }}, {{ race.country }}
+        </p>
+      </div>
+
+      <!-- 서킷 모양은 제목·위치와 같은 높이에 둔다 -->
+      <figure class="race-hero__layout">
+        <figcaption>CIRCUIT LAYOUT</figcaption>
+        <CircuitOutline :circuit-id="race.circuitId" :label="race.name" />
+      </figure>
+    </div>
 
     <div class="race-hero__body">
       <!-- 서킷 현재 날씨 (Apple Weather 히어로 온도 표현) -->
@@ -66,11 +76,6 @@ const goDetail = () => {
           </div>
         </template>
         <div v-else class="race-hero__weather-empty">서킷 날씨 불러오는 중…</div>
-      </div>
-
-      <!-- 온도와 카운트다운 사이 빈 자리에 서킷 모양을 둔다 -->
-      <div class="race-hero__circuit-shape" aria-hidden="false">
-        <CircuitOutline :circuit-id="race.circuitId" :label="race.name" />
       </div>
 
       <!-- 레이스 카운트다운 -->
@@ -201,18 +206,37 @@ const goDetail = () => {
   gap: 16px;
 }
 /*
- * 온도와 카운트다운 사이 남는 자리에 서킷 모양을 놓는다.
- * flex: 1로 두어 가운데 여백을 그대로 차지하게 하고,
- * 좁은 화면에서는 접혀 내려가지 않도록 아래 미디어쿼리에서 숨긴다.
+ * 제목·위치와 서킷 모양을 한 줄에 둔다.
+ * 모양이 아래쪽 온도/카운트다운 사이에 홀로 떠 있으면 따로 노는 느낌이 나서,
+ * 제목 블록과 같은 높이로 맞춰 하나의 머리글처럼 읽히게 했다.
  */
-.race-hero__circuit-shape {
-  flex: 1 1 120px;
-  max-width: 190px;
-  height: 108px;
+.race-hero__headline {
   display: flex;
   align-items: center;
-  justify-content: center;
-  align-self: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+.race-hero__headline-text {
+  min-width: 0;
+}
+.race-hero__layout {
+  margin: 0;
+  flex: none;
+  width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.race-hero__layout figcaption {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.race-hero__layout :deep(.circuit-outline) {
+  height: 84px;
 }
 .race-hero__icon {
   font-size: 58px;
@@ -309,8 +333,8 @@ const goDetail = () => {
   .race-hero__clock {
     justify-content: flex-start;
   }
-  /* 세로로 쌓이면 서킷 도형이 온도와 카운트다운 사이를 벌려놓기만 한다 */
-  .race-hero__circuit-shape {
+  /* 좁은 화면에서는 제목이 우선이다 */
+  .race-hero__layout {
     display: none;
   }
 }
