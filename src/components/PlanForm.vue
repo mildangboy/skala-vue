@@ -24,9 +24,11 @@ const emit = defineEmits(['submit', 'cancel'])
 
 const formRef = ref(null)
 
+// 비울 때도 이메일은 로그인 계정 주소로 되돌린다.
+// 빈 문자열로 두면 폼 초기화가 계정 이메일을 지워버린다.
 const blankForm = () => ({
   circuitId: '',
-  email: '',
+  email: props.accountEmail,
   people: 2,
   excitement: 4,
   notify: false,

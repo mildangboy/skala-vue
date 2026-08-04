@@ -47,8 +47,10 @@ client.interceptors.response.use(
     const message =
       status === 400
         ? `요청 형식이 올바르지 않습니다. ${detail ?? ''}`.trim()
-        : status === 401 || status === 403
-          ? 'Firestore 접근이 거부되었습니다. API 키와 보안 규칙을 확인해주세요.'
+        : // 규칙은 "로그인한 본인 문서 + 계정 이메일"만 허용한다.
+          // 설정 문제로 오해하지 않도록 실제로 흔한 원인을 먼저 안내한다.
+          status === 401 || status === 403
+          ? '저장이 거부되었습니다. 로그인 상태와 알림 이메일이 계정 주소와 같은지 확인해주세요.'
           : status === 404
             ? '해당 플랜을 찾을 수 없습니다.'
             : status >= 500
@@ -80,7 +82,14 @@ const fromFirestoreValue = (v) => {
   return v.stringValue ?? null
 }
 
+/**
+ * 문서에 저장하는 필드 목록.
+ *
+ * ownerUid가 빠지면 저장 요청에 소유자 표시가 실리지 않아
+ * 보안 규칙(claimsSelf)이 모든 쓰기를 거부한다. 조회 조건도 이 필드를 쓴다.
+ */
 const PLAN_FIELDS = [
+  'ownerUid',
   'circuitId',
   'circuitName',
   'round',
