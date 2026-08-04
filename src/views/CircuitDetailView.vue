@@ -29,6 +29,11 @@ const chartHours = ref(8) // 차트에 표시할 예보 구간 (el-input-number�
 
 const race = computed(() => f1.findRace(route.params.circuitId))
 
+// 일정을 받아오기 전에는 '없는 서킷'인지 알 수 없다.
+// 내장 캘린더에만 없는 서킷(시즌 중 변경된 경기)이 잠깐 "찾을 수 없습니다"로
+// 깜빡이지 않도록, 조회가 끝난 뒤에만 판정한다.
+const calendarReady = ref(false)
+
 const infoOpen = ref(false)
 
 const raceTimeLabel = computed(() =>
@@ -96,6 +101,7 @@ const { refresh, refreshing, lastUpdated, paused } = useAutoRefresh(load)
 
 onMounted(async () => {
   await f1.loadCalendar()
+  calendarReady.value = true
   load()
 })
 
@@ -117,7 +123,13 @@ watch([() => route.params.circuitId, () => config.unit], load)
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
-    <el-empty v-if="!race && !loading" description="해당 서킷을 찾을 수 없습니다" />
+
+    <SkeletonCard v-if="!race && !calendarReady" />
+    <el-empty v-else-if="!race" description="해당 서킷을 찾을 수 없습니다">
+      <el-button type="primary" round @click="router.push({ name: 'f1-calendar' })">
+        캘린더에서 고르기
+      </el-button>
+    </el-empty>
 
     <template v-if="race">
       <!-- 히어로: 서킷 정보 + 현재 날씨 -->

@@ -1,5 +1,4 @@
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
-import { F1_CALENDAR_2026 } from '@/data/f1Calendar2026'
 
 const BASE_TITLE = 'SKALA Weather'
 
@@ -36,12 +35,15 @@ const routes = [
     component: () => import('@/views/CircuitDetailView.vue'),
     props: true,
     meta: { title: '서킷 날씨', parent: 'f1-calendar' },
-    // 존재하지 않는 서킷 ID로 접근하면 404로 보낸다
-    beforeEnter: (to) => {
-      const known = F1_CALENDAR_2026.some((r) => r.circuitId === to.params.circuitId)
-      if (!known) return { name: 'not-found', params: { pathMatch: to.path.slice(1).split('/') } }
-      return true
-    },
+    // 여기서 서킷 ID가 유효한지 판정하지 않는다.
+    //
+    // 예전에는 내장 캘린더에 있는 ID인지 확인하고 없으면 404로 보냈다.
+    // 하지만 내장 캘린더는 빌드 시점의 스냅샷이라 시즌 중에 일정이 바뀌면
+    // 실제로 열리는 경기를 없는 서킷으로 판정한다(2026년 바레인 GP가
+    // 세팡으로 옮겨가면서 실제로 이 일이 났다).
+    //
+    // 유효한 서킷 목록은 라이브 API만 알고 있고, 라우터 가드는 동기라
+    // 그 답을 기다릴 수 없다. 그래서 판정은 데이터를 쥐고 있는 화면 쪽에 맡긴다.
   },
   {
     path: '/plan',

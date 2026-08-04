@@ -4,8 +4,21 @@ import { F1_CALENDAR_2026, F1_SEASON } from '@/data/f1Calendar2026'
 // Jolpica-F1: Ergast API의 공식 후속 프로젝트 (인증 불필요)
 const JOLPICA_BASE = 'https://api.jolpi.ca/ergast/f1'
 
-// 영문 GP 명칭 -> 한글 명칭 매핑 (내장 캘린더 기준)
-const KO_NAME_BY_ID = Object.fromEntries(F1_CALENDAR_2026.map((r) => [r.circuitId, r.name]))
+/**
+ * 서킷 ID -> 한글 GP 명칭.
+ *
+ * 기본은 내장 캘린더에서 만들지만, 시즌 중에 개최지가 바뀌면 캘린더에 없는
+ * 서킷이 라이브 일정에 나타난다. 그런 경기는 이름을 못 찾아 영문으로 남으므로
+ * 여기에 따로 적어둔다.
+ */
+const KO_NAME_EXTRA = {
+  // 2026 바레인 GP는 전쟁 여파로 세팡에서 열린다
+  sepang: '바레인 그랑프리 (말레이시아 개최)',
+}
+const KO_NAME_BY_ID = {
+  ...Object.fromEntries(F1_CALENDAR_2026.map((r) => [r.circuitId, r.name])),
+  ...KO_NAME_EXTRA,
+}
 
 const mapJolpicaRace = (race) => ({
   round: Number(race.round),
