@@ -92,9 +92,8 @@ const initGis = () =>
         const waiting = pending
         pending = null
         if (!waiting) return
-        credential
-          ? waiting.resolve(credential)
-          : waiting.reject(new Error('로그인이 취소되었습니다.'))
+        if (credential) waiting.resolve(credential)
+        else waiting.reject(new Error('로그인이 취소되었습니다.'))
       },
       auto_select: false,
       cancel_on_tap_outside: false,
