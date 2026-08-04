@@ -5,6 +5,7 @@ import { Timer, LocationInformation, TrendCharts } from '@element-plus/icons-vue
 import { formatTemp } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { raceStartDate } from '@/data/f1Calendar2026'
+import CircuitOutline from './CircuitOutline.vue'
 
 const props = defineProps({
   race: { type: Object, default: null },
@@ -65,6 +66,11 @@ const goDetail = () => {
           </div>
         </template>
         <div v-else class="race-hero__weather-empty">서킷 날씨 불러오는 중…</div>
+      </div>
+
+      <!-- 온도와 카운트다운 사이 빈 자리에 서킷 모양을 둔다 -->
+      <div class="race-hero__circuit-shape" aria-hidden="false">
+        <CircuitOutline :circuit-id="race.circuitId" :label="race.name" />
       </div>
 
       <!-- 레이스 카운트다운 -->
@@ -194,6 +200,20 @@ const goDetail = () => {
   align-items: center;
   gap: 16px;
 }
+/*
+ * 온도와 카운트다운 사이 남는 자리에 서킷 모양을 놓는다.
+ * flex: 1로 두어 가운데 여백을 그대로 차지하게 하고,
+ * 좁은 화면에서는 접혀 내려가지 않도록 아래 미디어쿼리에서 숨긴다.
+ */
+.race-hero__circuit-shape {
+  flex: 1 1 120px;
+  max-width: 190px;
+  height: 108px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
 .race-hero__icon {
   font-size: 58px;
   line-height: 1;
@@ -288,6 +308,10 @@ const goDetail = () => {
   }
   .race-hero__clock {
     justify-content: flex-start;
+  }
+  /* 세로로 쌓이면 서킷 도형이 온도와 카운트다운 사이를 벌려놓기만 한다 */
+  .race-hero__circuit-shape {
+    display: none;
   }
 }
 </style>
