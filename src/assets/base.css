@@ -26,6 +26,8 @@
      surface는 배경, specular는 빛이 스치는 테두리, shadow는 떠 있는 느낌. */
   --surface: rgba(255, 255, 255, 0.55);
   --surface-strong: rgba(255, 255, 255, 0.82);
+  /* 아래가 비치면 안 되는 곳(예: 구글 버튼을 덮는 면)에 쓰는 불투명 색 */
+  --surface-solid: #ffffff;
   --surface-border: rgba(10, 10, 10, 0.06);
   --surface-shadow:
     0 1px 1px rgba(10, 20, 24, 0.04), 0 8px 24px rgba(10, 20, 24, 0.08),
@@ -98,6 +100,7 @@ html.dark {
      어두운 유리는 배경을 더 많이 비추되, 상단 반사광을 남겨 두께를 표현한다. */
   --surface: rgba(28, 33, 36, 0.5);
   --surface-strong: rgba(34, 39, 42, 0.78);
+  --surface-solid: #22272a;
   --surface-border: rgba(200, 204, 206, 0.1);
   --surface-shadow:
     0 1px 1px rgba(0, 0, 0, 0.28), 0 10px 30px rgba(0, 0, 0, 0.42), 0 28px 56px rgba(0, 0, 0, 0.32);

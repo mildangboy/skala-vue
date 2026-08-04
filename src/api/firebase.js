@@ -77,31 +77,76 @@ const loadGis = () =>
     document.head.appendChild(script)
   }))
 
-/** GIS 팝업으로 구글 ID 토큰을 받는다 */
-const requestGoogleIdToken = () =>
+/**
+ * GIS는 initialize를 한 번만 부르고 콜백을 공유한다.
+ * 여기 담긴 핸들러가 그때그때 대기 중인 요청으로 연결된다.
+ */
+let pending = null
+let gisReady = null
+
+const initGis = () =>
+  (gisReady ??= loadGis().then((google) => {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: ({ credential }) => {
+        const waiting = pending
+        pending = null
+        if (!waiting) return
+        credential
+          ? waiting.resolve(credential)
+          : waiting.reject(new Error('로그인이 취소되었습니다.'))
+      },
+      auto_select: false,
+      cancel_on_tap_outside: false,
+    })
+    return google
+  }))
+
+/** 다음 credential 하나를 기다린다 */
+const awaitCredential = () =>
   new Promise((resolve, reject) => {
-    loadGis()
-      .then((google) => {
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: ({ credential }) =>
-            credential ? resolve(credential) : reject(new Error('로그인이 취소되었습니다.')),
-          cancel_on_tap_outside: false,
-          use_fedcm_for_prompt: true,
-        })
-        google.accounts.id.prompt((notification) => {
-          // One Tap이 뜨지 않는 환경에서는 사용자에게 안내한다
-          if (notification.isNotDisplayed?.() || notification.isSkippedMoment?.()) {
-            reject(
-              new Error(
-                '구글 로그인 창을 띄우지 못했습니다. 브라우저의 서드파티 쿠키 차단을 확인해주세요.',
-              ),
-            )
-          }
-        })
-      })
-      .catch(reject)
+    pending?.reject(new Error('로그인이 취소되었습니다.'))
+    pending = { resolve, reject }
   })
+
+/**
+ * 구글 공식 로그인 버튼을 그린다.
+ *
+ * 이 버튼은 cross-origin iframe이라 배경(흰색)을 바꿀 수 없고,
+ * 계정 상태에 따라 문구와 크기도 달라진다.
+ * 그래서 어두운 화면에 직접 두지 않고, 밝은 판이 깔린 로그인 창 안에 둔다.
+ *
+ * One Tap(prompt)으로 대체하지 않는 이유는, 서드파티 쿠키 차단이나
+ * 이전에 닫아둔 뒤의 쿨다운에서 창이 아예 뜨지 않기 때문이다.
+ *
+ * @param {HTMLElement} container 버튼을 그릴 자리
+ * @returns {Promise<void>}
+ */
+export const renderGoogleButton = async (container) => {
+  if (!hasAuthConfig() || !container) return
+  const google = await initGis()
+
+  container.innerHTML = ''
+  google.accounts.id.renderButton(container, {
+    type: 'standard',
+    theme: 'outline',
+    size: 'large',
+    shape: 'pill',
+    text: 'signin_with', // "Google 계정으로 로그인"
+    locale: 'ko',
+  })
+}
+
+/** 버튼 클릭으로 들어온 credential을 Firebase 세션으로 바꾼다 */
+export const completeButtonSignIn = async () => exchangeGoogleToken(await awaitCredential())
+
+/** One Tap. 버튼이 막힌 환경을 위한 보조 경로 */
+const requestGoogleIdTokenViaPrompt = async () => {
+  const google = await initGis()
+  const credential = awaitCredential()
+  google.accounts.id.prompt()
+  return credential
+}
 
 /* ── Firebase Auth REST ──────────────────────────────────────── */
 
@@ -127,10 +172,9 @@ const saveFromAuthResponse = (data) => {
   })
 }
 
-export const signInWithGoogle = async () => {
+/** 구글 ID 토큰을 Firebase 세션으로 교환한다 */
+const exchangeGoogleToken = async (googleIdToken) => {
   if (!hasAuthConfig()) throw new Error('Firebase 설정이 없습니다. .env를 확인해주세요.')
-
-  const googleIdToken = await requestGoogleIdToken()
   try {
     const { data } = await identity.post(
       '/accounts:signInWithIdp',
@@ -152,6 +196,10 @@ export const signInWithGoogle = async () => {
     throw new Error(messages[reason] ?? `로그인에 실패했습니다. (${reason})`, { cause: err })
   }
 }
+
+/** One Tap으로 로그인한다 (보조 경로) */
+export const signInWithGoogle = async () =>
+  exchangeGoogleToken(await requestGoogleIdTokenViaPrompt())
 
 export const signOut = async () => {
   if (window.google?.accounts?.id) window.google.accounts.id.disableAutoSelect()

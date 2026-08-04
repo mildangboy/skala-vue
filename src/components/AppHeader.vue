@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { Close, Menu as MenuIcon } from '@element-plus/icons-vue'
 import ThemeToggle from './ThemeToggle.vue'
 import UnitToggle from './UnitToggle.vue'
+import AuthMenu from './AuthMenu.vue'
 
 const route = useRoute()
 
@@ -61,6 +62,12 @@ watch(
       <div class="app-header__controls">
         <UnitToggle />
         <ThemeToggle />
+        <AuthMenu />
+      </div>
+
+      <!-- 모바일에서는 토글은 서랍으로 보내고 로그인만 헤더에 남긴다 -->
+      <div class="app-header__auth-mobile">
+        <AuthMenu />
       </div>
 
       <!-- 모바일 햄버거 -->
@@ -224,6 +231,9 @@ watch(
   gap: 8px;
   flex-shrink: 0;
 }
+.app-header__auth-mobile {
+  display: none;
+}
 
 /* 햄버거 — 데스크톱에서는 숨김 */
 .hamburger {
@@ -325,6 +335,9 @@ watch(
   .nav,
   .app-header__controls {
     display: none;
+  }
+  .app-header__auth-mobile {
+    display: block;
   }
   .hamburger {
     display: grid;
