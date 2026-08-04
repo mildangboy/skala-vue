@@ -1,7 +1,6 @@
 import { Firestore } from '@google-cloud/firestore'
 import { initializeApp } from 'firebase-admin/app'
 import { getAuth } from 'firebase-admin/auth'
-import { google } from 'googleapis'
 import functions from '@google-cloud/functions-framework'
 
 import { F1_CALENDAR_2026 } from './f1Calendar2026.js'
@@ -15,6 +14,7 @@ import {
   buildRawMessage,
 } from './notifier.js'
 import { describeWeather } from './weatherText.js'
+import { getAccessToken, sendRaw } from './gmail.js'
 
 /**
  * 레이스 전날 서킷 날씨 알림.
@@ -113,17 +113,6 @@ const fetchCurrentWeather = async (lat, lon) => {
 const fetchWeather = async (race) =>
   (await fetchRaceForecast(race)) ?? (await fetchCurrentWeather(race.lat, race.lon))
 
-/** 저장해 둔 리프레시 토큰으로 Gmail 클라이언트를 만든다 */
-const gmailClient = () => {
-  const auth = new google.auth.OAuth2(
-    process.env.GMAIL_CLIENT_ID,
-    process.env.GMAIL_CLIENT_SECRET,
-    'https://developers.google.com/oauthplayground',
-  )
-  auth.setCredentials({ refresh_token: process.env.GMAIL_REFRESH_TOKEN })
-  return google.gmail({ version: 'v1', auth })
-}
-
 const loadPlans = async () => {
   const snap = await firestore.collection('plans').where('notify', '==', true).get()
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
@@ -162,7 +151,6 @@ export const notifyRaceWeather = async (req, res) => {
       console.warn('날씨 조회 실패, 날씨 없이 발송합니다:', err.message)
     }
 
-    const gmail = gmailClient()
     const from = process.env.GMAIL_SENDER ?? 'me'
     const subject = buildSubject(race, weather)
 
@@ -178,19 +166,24 @@ export const notifyRaceWeather = async (req, res) => {
       return res.status(200).json({ sent: 0, race: race.name, reason: '주소 조회 실패' })
     }
 
+    // 액세스 토큰은 한 번만 받아 모든 수신자에게 재사용한다
+    const accessToken = await getAccessToken({
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+    })
+
     const results = await Promise.allSettled(
       withEmail.map(({ email, plan }) =>
-        gmail.users.messages.send({
-          userId: 'me',
-          requestBody: {
-            raw: buildRawMessage({
-              to: email,
-              from,
-              subject,
-              html: buildHtml({ race, weather, plan, condition: null }),
-            }),
-          },
-        }),
+        sendRaw(
+          accessToken,
+          buildRawMessage({
+            to: email,
+            from,
+            subject,
+            html: buildHtml({ race, weather, plan, condition: null }),
+          }),
+        ),
       ),
     )
 

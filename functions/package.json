@@ -10,12 +10,11 @@
   },
   "scripts": {
     "start": "functions-framework --target=notifyRaceWeather",
-    "test": "node test/notifier.test.mjs"
+    "test": "node test/notifier.test.mjs && node test/gmail.test.mjs"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.4.2",
     "@google-cloud/firestore": "^7.10.0",
-    "googleapis": "^144.0.0",
     "firebase-admin": "^13.0.2"
   }
 }

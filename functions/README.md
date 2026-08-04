@@ -44,7 +44,7 @@ Cloud Function  ──▶ Firestore    (알림 켠 플랜 조회)
 **설정은 모두 끝났습니다.** 다음 레이스(8/23 네덜란드 GP) 전날인 8월 22일 09:00에
 알림을 켜둔 플랜이 있으면 자동으로 메일이 나갑니다.
 
-코드를 고쳤을 때는 `./deploy.sh`만 다시 돌리면 됩니다.
+코드를 고쳤을 때는 `./deploy.sh`만 다시 돌리면 됩니다(준비 단계는 건너뜁니다).
 
 GitHub Pages 배포본에서도 로그인을 쓰려면 저장소 **Settings → Secrets and variables → Actions**에
 `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_API_KEY`, `VITE_GOOGLE_CLIENT_ID` 세 개를 등록하세요.
@@ -84,10 +84,11 @@ gcloud services enable firestore.googleapis.com gmail.googleapis.com \
 
 핵심은 세 가지입니다.
 
-- 로그인한 사용자의 **본인 문서만** 읽기·수정·삭제
-- 문서의 `ownerUid`가 토큰의 uid와 일치해야 저장 가능
-- 저장하려는 `email`이 **계정에 등록된 주소와 같아야** 함
-  → 이 조건이 없으면 남의 주소를 적어 알림 메일을 보내게 만들 수 있습니다
+- **읽기**는 로그인한 사람 모두 (서로의 관전 플랜을 볼 수 있게)
+- **수정·삭제**는 문서의 `ownerUid`가 토큰의 uid와 같을 때만
+- 문서에 `email`·`phone` 같은 연락처는 **넣을 수 없음**
+  → 목록이 공개라 담으면 남의 주소가 그대로 보입니다.
+  알림은 계정 주소로만 나가고, 그 주소는 발송 시점에 함수가 Firebase Auth에서 읽습니다
 
 ### 2-1. 구글 로그인 켜기
 
@@ -154,13 +155,22 @@ node get-refresh-token.mjs \
 
 ### 6~8. 한 번에: `deploy.sh`
 
-5단계까지 마쳤으면 아래 한 줄이면 됩니다.
+5단계까지 마쳤으면 **처음 한 번만** 아래처럼 전부 돌립니다.
 API 활성화 · Secret 저장 · 권한 부여 · 함수 배포 · 스케줄러 등록을 순서대로 처리합니다.
 
 ```bash
 cd functions
+./deploy.sh --setup
+```
+
+그다음부터, 코드만 고쳤을 때는 준비 단계를 건너뜁니다.
+
+```bash
 ./deploy.sh
 ```
+
+준비 단계(API 활성화 · Secret · IAM · 반영 대기)는 한 번 해두면 다시 할 필요가 없는데
+합치면 1분 넘게 걸립니다. 비밀값이나 권한을 바꿨을 때만 `--setup`을 다시 쓰면 됩니다.
 
 - 값은 `credentials.local`에서 읽으므로 비밀값을 터미널에 붙여넣을 일이 없습니다
 - 여러 번 실행해도 안전합니다 (있는 것은 갱신, 없는 것만 생성)

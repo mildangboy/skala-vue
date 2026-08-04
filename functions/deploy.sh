@@ -1,14 +1,29 @@
 #!/usr/bin/env bash
 #
-# 레이스 전날 알림 메일 — 6~8단계를 한 번에 (API 활성화 · Secret · 배포 · 스케줄러)
+# 레이스 전날 알림 메일 배포
 #
-#   cd functions
-#   ./deploy.sh
+#   ./deploy.sh          코드만 배포 (평소에는 이것)
+#   ./deploy.sh --setup  준비까지 전부 (처음 한 번, 또는 비밀값·권한이 바뀌었을 때)
 #
 # 값은 credentials.local에서 읽으므로 터미널에 비밀값을 붙여넣을 일이 없습니다.
 # 여러 번 실행해도 안전합니다 (이미 있는 것은 갱신하거나 건너뜁니다).
+#
+# 준비 단계(API 활성화 · Secret 저장 · IAM · 반영 대기)는 한 번 해두면
+# 코드를 고칠 때마다 다시 할 필요가 없는데 1분 넘게 걸린다.
+# 그래서 기본은 함수 배포만 하고, 필요할 때만 --setup으로 전부 돌린다.
 
 set -euo pipefail
+
+SETUP=0
+for arg in "$@"; do
+  case "$arg" in
+    --setup|-s) SETUP=1 ;;
+    --help|-h)
+      sed -n '2,12p' "$0" | sed 's/^# \?//'
+      exit 0 ;;
+    *) echo "모르는 옵션: $arg (--setup 또는 --help)"; exit 1 ;;
+  esac
+done
 
 PROJECT_ID=numeric-melody-504500-q8
 REGION=asia-northeast3
@@ -55,7 +70,10 @@ fi
 # shellcheck disable=SC1091
 set -a; source ./credentials.local; set +a
 
-for var in GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN GMAIL_SENDER OPENWEATHER_API_KEY; do
+# 코드만 배포할 때도 GMAIL_SENDER는 환경변수로 넘기므로 함께 확인한다
+NEEDED="GMAIL_SENDER"
+[ "$SETUP" -eq 1 ] && NEEDED="GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET GMAIL_REFRESH_TOKEN GMAIL_SENDER OPENWEATHER_API_KEY"
+for var in $NEEDED; do
   if [ -z "${!var:-}" ]; then
     echo "credentials.local의 $var 가 비어 있습니다."
     [ "$var" = "GMAIL_REFRESH_TOKEN" ] && echo "→ 5단계(node get-refresh-token.mjs ...)를 먼저 실행하세요."
@@ -66,7 +84,11 @@ done
 gcloud config set project "$PROJECT_ID" >/dev/null
 echo "프로젝트: $PROJECT_ID / 리전: $REGION"
 
-# ── 1) 필요한 API 켜기 ───────────────────────────────────────
+# ── 준비 단계 (--setup일 때만) ───────────────────────────────
+# 여기부터 '함수 배포' 직전까지는 한 번 해두면 코드를 고칠 때마다
+# 다시 할 필요가 없다. 그런데 합치면 1분 넘게 걸려 매번 돌리기엔 아깝다.
+if [ "$SETUP" -eq 1 ]; then
+
 echo
 echo "▶ API 활성화 (이미 켜져 있으면 그대로 넘어갑니다)"
 gcloud services enable \
@@ -138,7 +160,12 @@ echo
 echo "▶ 권한 반영 대기 (30초)"
 sleep 30
 
-# ── 3) 함수 배포 ─────────────────────────────────────────────
+else
+  echo
+  echo "▶ 준비 단계 건너뜀 (비밀값·권한을 바꿨다면 ./deploy.sh --setup)"
+fi
+
+# ── 함수 배포 ────────────────────────────────────────────────
 echo
 echo "▶ 함수 배포 (몇 분 걸립니다)"
 gcloud functions deploy "$FUNCTION" \
@@ -158,6 +185,15 @@ SA="$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com"
 
 echo
 echo "▶ 스케줄러"
+
+# 이미 호출 권한이 붙어 있으면 계정 생성·전파 대기·권한 부여를 통째로 건너뛴다.
+# 코드만 고쳐 다시 배포할 때 매번 확인할 이유가 없다.
+if gcloud run services get-iam-policy "$FUNCTION" --region="$REGION" \
+     --format='value(bindings.members)' 2>/dev/null | grep -q "$SA_NAME@"; then
+  echo "  · 호출 권한 이미 있음"
+  bound=1
+else
+
 if gcloud iam service-accounts describe "$SA" >/dev/null 2>&1; then
   echo "  · 서비스 계정 있음"
 else
@@ -189,6 +225,8 @@ for attempt in $(seq 1 10); do
   fi
   sleep 6
 done
+
+fi
 
 if [ "$bound" -ne 1 ]; then
   echo
