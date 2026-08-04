@@ -16,6 +16,8 @@ const props = defineProps({
   unit: { type: String, default: 'metric' },
   saving: { type: Boolean, default: false },
   editing: { type: Object, default: null },
+  // 로그인 계정 이메일. 값이 있으면 이 주소로 고정한다.
+  accountEmail: { type: String, default: '' },
 })
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -33,6 +35,15 @@ const blankForm = () => ({
 const form = reactive(blankForm())
 
 const isEditing = computed(() => Boolean(props.editing))
+
+// 로그인 계정이 있으면 이메일을 항상 그 주소로 맞춘다 (서버 규칙과 동일한 제약)
+watch(
+  () => props.accountEmail,
+  (email) => {
+    if (email) form.email = email
+  },
+  { immediate: true },
+)
 
 // 부모가 수정 대상을 넘기면 폼을 채우고, 비우면 초기화한다
 watch(
@@ -125,7 +136,14 @@ defineExpose({ reset })
         </el-form-item>
 
         <el-form-item prop="email" label="알림 받을 이메일">
-          <el-input v-model.trim="form.email" placeholder="example@email.com" />
+          <el-input
+            v-model.trim="form.email"
+            :disabled="Boolean(accountEmail)"
+            placeholder="example@email.com"
+          />
+          <span v-if="accountEmail" class="plan-form__hint">
+            로그인한 계정 주소로만 발송됩니다
+          </span>
         </el-form-item>
 
         <el-form-item prop="people" label="관전 인원">

@@ -42,28 +42,25 @@ gcloud services enable firestore.googleapis.com gmail.googleapis.com \
 
 **Firestore → 데이터베이스 만들기 → Native 모드**, 위치는 `asia-northeast3`(서울)를 권장합니다.
 
-보안 규칙(**규칙** 탭)을 아래로 바꿉니다. 앱이 로그인 없이 쓰는 구조라 `plans` 컬렉션만 열고 형식을 검증합니다.
+보안 규칙(**규칙** 탭)에 `firestore.rules` 파일 내용을 그대로 붙여 넣습니다.
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /plans/{planId} {
-      allow read: if true;
-      allow create, update: if
-        request.resource.data.email is string &&
-        request.resource.data.email.size() < 200 &&
-        request.resource.data.notify is bool;
-      allow delete: if true;
-    }
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-```
+핵심은 세 가지입니다.
 
-> 학습용 설정입니다. 실제 서비스라면 로그인을 붙여 본인 문서만 수정하도록 제한해야 합니다.
+- 로그인한 사용자의 **본인 문서만** 읽기·수정·삭제
+- 문서의 `ownerUid`가 토큰의 uid와 일치해야 저장 가능
+- 저장하려는 `email`이 **계정에 등록된 주소와 같아야** 함
+  → 이 조건이 없으면 남의 주소를 적어 알림 메일을 보내게 만들 수 있습니다
+
+### 2-1. 구글 로그인 켜기
+
+공개 링크로 제출하므로 로그인이 필요합니다.
+
+[Firebase 콘솔](https://console.firebase.google.com)에서 **프로젝트 추가 → 기존 Google Cloud 프로젝트 선택**으로 방금 만든 프로젝트를 연결합니다.
+
+그다음 **Authentication → Sign-in method → Google → 사용 설정**합니다.
+
+- **승인된 도메인**에 `localhost`와 `mildangboy.github.io`를 추가합니다
+- 사용 설정하면 웹 클라이언트 ID가 자동 생성됩니다. **웹 SDK 구성**에서 복사해 둡니다
 
 ### 3. 웹 API 키 발급 (프런트가 Firestore를 부를 때 사용)
 
@@ -79,7 +76,10 @@ service cloud.firestore {
 ```
 VITE_FIREBASE_PROJECT_ID=PROJECT_ID
 VITE_FIREBASE_API_KEY=발급받은_API_키
+VITE_GOOGLE_CLIENT_ID=2-1에서_복사한_웹_클라이언트_ID
 ```
+
+API 키 제한에서 **Identity Toolkit API**도 함께 허용해야 로그인이 됩니다.
 
 ### 4. OAuth 클라이언트 만들기 (Gmail 발송용)
 

@@ -1,17 +1,20 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Edit, Delete } from '@element-plus/icons-vue'
 import { usePlanStore } from '@/stores/planStore'
 import { useF1Store } from '@/stores/f1Store'
 import { useConfigStore } from '@/stores/configStore'
+import { useAuthStore } from '@/stores/authStore'
 import PlanForm from '@/components/PlanForm.vue'
+import SignInGate from '@/components/SignInGate.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
 
 const planStore = usePlanStore()
 const f1 = useF1Store()
 const config = useConfigStore()
+const auth = useAuthStore()
 const { plans, loading, saving, error, total, totalPeople, avgExcitement, notifyCount } =
   storeToRefs(planStore)
 const { upcomingRaces, circuitWeather } = storeToRefs(f1)
@@ -24,6 +27,12 @@ onMounted(async () => {
   await Promise.all([f1.loadCalendar(), planStore.loadInitial()])
   f1.loadCircuitWeather(upcomingRaces.value.slice(0, 8), config.unit)
 })
+
+// 로그인 상태가 바뀌면 내 플랜을 다시 불러온다
+watch(
+  () => auth.isSignedIn,
+  () => planStore.loadInitial(),
+)
 
 // 폼에서 올라온 초안을 저장 — 등록/수정 분기와 스토어 호출은 뷰가 담당
 const handleSubmit = async (draft) => {
@@ -78,14 +87,18 @@ const confirmRemove = async (plan) => {
       <p>관전할 그랑프리를 고르고 인원과 기대 지수를 기록하세요. 서킷 날씨가 함께 표시됩니다.</p>
     </header>
 
+    <SignInGate />
+
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
 
     <PlanForm
+      v-if="auth.isSignedIn || !auth.configured"
       :races="upcomingRaces"
       :circuit-weather="circuitWeather"
       :unit="config.unit"
       :saving="saving"
       :editing="editingPlan"
+      :account-email="auth.user?.email ?? ''"
       @submit="handleSubmit"
       @cancel="editingPlan = null"
     />

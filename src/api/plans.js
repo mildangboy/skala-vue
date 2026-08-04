@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getIdToken } from './firebase'
 
 /**
  * 관전 플랜 CRUD — Google Cloud Firestore REST API.
@@ -21,15 +22,20 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// 모든 요청에 API 키를 자동으로 붙인다.
+// 모든 요청에 API 키와 로그인 토큰을 붙인다.
 // updateMask처럼 같은 키를 여러 번 보내야 하는 경우 URLSearchParams로 들어오므로
 // 객체와 URLSearchParams 두 형태를 모두 받아준다.
-client.interceptors.request.use((config) => {
+client.interceptors.request.use(async (config) => {
   if (config.params instanceof URLSearchParams) {
     config.params.set('key', API_KEY)
   } else {
     config.params = { key: API_KEY, ...config.params }
   }
+
+  // 보안 규칙이 request.auth를 보므로 토큰이 없으면 읽기조차 거부된다
+  const token = await getIdToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+
   return config
 })
 
@@ -103,10 +109,30 @@ const fromDocument = (doc) => {
 
 /* ── CRUD ───────────────────────────────────────────────────── */
 
-// GET — 목록 조회
-export const fetchPlans = async (limit = 20) => {
-  const { data } = await client.get(`/${COLLECTION}`, { params: { pageSize: limit } })
-  return (data.documents ?? []).map(fromDocument)
+/**
+ * GET — 본인 플랜만 조회.
+ * 보안 규칙이 소유자 문서만 읽도록 막고 있어, 쿼리에도 같은 조건을 넣어야 한다.
+ * (조건 없이 컬렉션 전체를 요청하면 규칙 위반으로 거부된다)
+ */
+export const fetchPlans = async (ownerUid, limit = 20) => {
+  if (!ownerUid) return []
+
+  const { data } = await client.post(':runQuery', {
+    structuredQuery: {
+      from: [{ collectionId: COLLECTION }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'ownerUid' },
+          op: 'EQUAL',
+          value: { stringValue: ownerUid },
+        },
+      },
+      limit,
+    },
+  })
+
+  // runQuery는 [{ document }, ...] 형태로 오고, 결과가 없으면 document가 비어 있다
+  return (data ?? []).filter((row) => row.document).map((row) => fromDocument(row.document))
 }
 
 // POST — 신규 등록 (Firestore가 문서 ID를 생성)

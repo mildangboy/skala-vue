@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 관전 플랜 — 로그인한 본인 문서만 다룰 수 있다.
+    match /plans/{planId} {
+
+      function signedIn() {
+        return request.auth != null;
+      }
+
+      // 문서의 주인인지
+      function isOwner() {
+        return signedIn() && resource.data.ownerUid == request.auth.uid;
+      }
+
+      // 새로 쓰는 내용이 본인 것으로 표시돼 있는지
+      function claimsSelf() {
+        return signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      }
+
+      // 알림 메일은 계정에 등록된 주소로만 나가야 한다.
+      // 이 조건이 없으면 남의 주소를 적어 메일을 보내게 만들 수 있다.
+      function emailMatchesAccount() {
+        return request.resource.data.email == request.auth.token.email;
+      }
+
+      function validShape() {
+        let d = request.resource.data;
+        return d.email is string && d.email.size() < 200
+          && d.notify is bool
+          && d.circuitId is string && d.circuitId.size() < 100
+          && d.people is int && d.people >= 1 && d.people <= 10
+          && d.memo is string && d.memo.size() <= 40;
+      }
+
+      // 목록은 본인 것만 읽을 수 있다 (쿼리에 ownerUid 조건이 있어야 통과)
+      allow read: if isOwner();
+
+      allow create: if claimsSelf() && emailMatchesAccount() && validShape();
+
+      // 수정 시 주인이 바뀌지 않도록 이전/이후 모두 확인
+      allow update: if isOwner() && claimsSelf() && emailMatchesAccount() && validShape();
+
+      allow delete: if isOwner();
+    }
+
+    // 그 외 모든 문서는 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

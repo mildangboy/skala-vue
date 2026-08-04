@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { createPlan, deletePlan, fetchPlans, hasFirestoreConfig, updatePlan } from '@/api/plans'
+import { useAuthStore } from './authStore'
 
 const STORAGE_KEY = 'skala-vue:plans'
 
@@ -22,6 +23,7 @@ const persist = (plans) => {
 }
 
 export const usePlanStore = defineStore('plan', () => {
+  const auth = useAuthStore()
   const plans = ref(readLocal() ?? [])
   const loading = ref(false)
   const saving = ref(false)
@@ -46,10 +48,14 @@ export const usePlanStore = defineStore('plan', () => {
       error.value = 'Firestore가 설정되지 않아 이 기기에만 저장됩니다. (functions/README.md 참고)'
       return
     }
+    if (!auth.isSignedIn) {
+      plans.value = []
+      return
+    }
     loading.value = true
     error.value = ''
     try {
-      plans.value = await fetchPlans()
+      plans.value = await fetchPlans(auth.user.uid)
       persist(plans.value)
     } catch (err) {
       error.value = err.message
@@ -62,8 +68,15 @@ export const usePlanStore = defineStore('plan', () => {
   const add = async (draft) => {
     saving.value = true
     error.value = ''
+    // 소유자와 이메일은 로그인 계정 기준으로 채운다.
+    // 보안 규칙이 이 두 값을 토큰과 대조하므로 임의 값은 거부된다.
+    const owned = {
+      ...draft,
+      ownerUid: auth.user?.uid ?? '',
+      email: auth.user?.email ?? draft.email,
+    }
     const tempId = `temp-${Date.now()}`
-    const optimistic = { ...draft, id: tempId, pending: true }
+    const optimistic = { ...owned, id: tempId, pending: true }
     plans.value = [optimistic, ...plans.value]
     if (offline) {
       plans.value = plans.value.map((p) =>
@@ -74,7 +87,7 @@ export const usePlanStore = defineStore('plan', () => {
       return optimistic
     }
     try {
-      const saved = await createPlan(draft)
+      const saved = await createPlan(owned)
       plans.value = plans.value.map((p) => (p.id === tempId ? { ...saved, pending: false } : p))
       persist(plans.value)
       return saved
@@ -91,10 +104,15 @@ export const usePlanStore = defineStore('plan', () => {
   const edit = async (draft) => {
     saving.value = true
     error.value = ''
+    const owned = {
+      ...draft,
+      ownerUid: auth.user?.uid ?? '',
+      email: auth.user?.email ?? draft.email,
+    }
     const before = plans.value.find((p) => p.id === draft.id)
-    plans.value = plans.value.map((p) => (p.id === draft.id ? { ...draft, pending: true } : p))
+    plans.value = plans.value.map((p) => (p.id === draft.id ? { ...owned, pending: true } : p))
     try {
-      const saved = await updatePlan(draft)
+      const saved = await updatePlan(owned)
       plans.value = plans.value.map((p) => (p.id === draft.id ? { ...saved, pending: false } : p))
       persist(plans.value)
       return saved
