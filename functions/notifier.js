@@ -21,6 +21,39 @@ export const dateKeyInZone = (date, timeZone = 'Asia/Seoul') => {
 export const tomorrowKey = (now = new Date(), timeZone = 'Asia/Seoul') =>
   dateKeyInZone(new Date(now.getTime() + 24 * 60 * 60 * 1000), timeZone)
 
+const DATE_KEY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/**
+ * 어느 날짜를 레이스 당일로 볼지 정한다.
+ *
+ * 평소에는 '내일'이지만, 호출할 때 date를 주면 그 날짜로 본다.
+ * 다음 레이스가 몇 주 뒤일 때 발송 경로가 살아 있는지 확인하려면 이게 필요하다.
+ * 함수 자체가 인증 필요 상태라 이 값을 아무나 넣을 수는 없다.
+ *
+ * @param {string|undefined} raw  'YYYY-MM-DD' 또는 없음
+ * @returns {{dayKey?: string, overridden?: boolean, error?: string}}
+ */
+export const resolveDayKey = (raw, now = new Date(), timeZone = 'Asia/Seoul') => {
+  if (raw === undefined || raw === null || raw === '') {
+    return { dayKey: tomorrowKey(now, timeZone), overridden: false }
+  }
+  if (typeof raw !== 'string') {
+    return { error: 'date는 문자열이어야 합니다.' }
+  }
+
+  const m = DATE_KEY.exec(raw)
+  if (!m) return { error: `date는 YYYY-MM-DD 형식이어야 합니다: ${raw}` }
+
+  // 2026-02-30처럼 형식은 맞지만 없는 날짜를 걸러낸다.
+  // Date.parse는 이런 값을 앞뒤 달로 넘겨버려서 그냥 통과시키면 엉뚱한 날이 된다.
+  const [, y, mo, d] = m
+  const probe = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d)))
+  const roundTrip = probe.toISOString().slice(0, 10)
+  if (roundTrip !== raw) return { error: `달력에 없는 날짜입니다: ${raw}` }
+
+  return { dayKey: raw, overridden: true }
+}
+
 /**
  * 내일 열리는 그랑프리를 찾는다.
  * 레이스 날짜는 UTC 기준이지만, 사용자는 자기 시간대의 '내일'을 기대하므로
@@ -50,6 +83,39 @@ export const selectRecipients = (plans, race) => {
     out.push({ email: p.email.trim(), plan: p })
   }
   return out
+}
+
+/**
+ * 3시간 간격 예보 목록에서 레이스 시작 시각에 가장 가까운 시점을 고른다.
+ *
+ * 전날 아침에 보내는 메일이라 '지금 날씨'는 레이스와 무관하다.
+ * 관전자가 알고 싶은 건 경기가 시작될 때의 날씨다.
+ *
+ * @param {Array<{dt:number}>} list  OpenWeatherMap /forecast 의 list
+ * @param {string} raceIso  레이스 시작 시각 (ISO)
+ * @returns {object|null} 가장 가까운 예보 항목
+ */
+export const pickForecastAt = (list, raceIso) => {
+  if (!Array.isArray(list) || !list.length) return null
+  const target = Date.parse(raceIso)
+  if (Number.isNaN(target)) return null
+
+  let best = null
+  let bestGap = Infinity
+  for (const item of list) {
+    const at = Number(item?.dt) * 1000
+    if (!Number.isFinite(at)) continue
+    const gap = Math.abs(at - target)
+    if (gap < bestGap) {
+      bestGap = gap
+      best = item
+    }
+  }
+
+  // 예보는 5일까지만 제공된다. 레이스가 그보다 멀면 엉뚱한 시점을 집게 되므로
+  // 6시간(=예보 간격 3시간의 두 배)을 넘게 벌어지면 쓰지 않는다.
+  if (bestGap > 6 * 60 * 60 * 1000) return null
+  return best
 }
 
 const escapeHtml = (s) =>
@@ -88,7 +154,10 @@ export const buildHtml = ({ race, weather, plan, condition }) => {
     <div style="padding:20px 24px">
       ${
         weather
-          ? `<div style="font-size:40px;font-weight:200;color:#fff;letter-spacing:-.03em">${Math.round(weather.temp)}°C</div>
+          ? `<div style="font-size:11px;letter-spacing:.1em;color:#8d9295;font-weight:700">
+               ${weather.isForecast === false ? '현재 날씨' : '레이스 시작 시각 예보'}
+             </div>
+             <div style="font-size:40px;font-weight:200;color:#fff;letter-spacing:-.03em;margin-top:4px">${Math.round(weather.temp)}°C</div>
              <div style="color:#b9c0c3;font-size:14px;margin-top:2px">${escapeHtml(weather.description)}</div>
              <table style="width:100%;margin-top:16px;border-collapse:collapse;color:#f2f5f6">
                ${row('체감', `${Math.round(weather.feelsLike)}°C`)}

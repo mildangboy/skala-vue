@@ -4,13 +4,15 @@ import functions from '@google-cloud/functions-framework'
 
 import { F1_CALENDAR_2026 } from './f1Calendar2026.js'
 import {
-  tomorrowKey,
+  resolveDayKey,
   findRaceOn,
   selectRecipients,
+  pickForecastAt,
   buildSubject,
   buildHtml,
   buildRawMessage,
 } from './notifier.js'
+import { describeWeather } from './weatherText.js'
 
 /**
  * 레이스 전날 서킷 날씨 알림.
@@ -27,13 +29,49 @@ const TIME_ZONE = process.env.TIME_ZONE ?? 'Asia/Seoul'
 
 const firestore = new Firestore()
 
-/** OpenWeatherMap 현재 날씨 (좌표 기준) */
-const fetchWeather = async (lat, lon) => {
+/**
+ * 레이스 시작 시각의 예보를 가져온다.
+ *
+ * 전날 아침에 보내는 메일이므로 '지금 날씨'가 아니라
+ * 경기가 시작될 시점의 예보를 담아야 의미가 있다.
+ * /forecast는 3시간 간격 5일치를 주므로 그중 가장 가까운 시점을 고른다.
+ *
+ * 예보 범위를 벗어나면(=레이스가 5일 이상 남음) null을 돌려주고,
+ * 부르는 쪽에서 현재 날씨로 물러난다.
+ */
+const fetchRaceForecast = async (race) => {
+  const url = new URL('https://api.openweathermap.org/data/2.5/forecast')
+  url.searchParams.set('lat', race.lat)
+  url.searchParams.set('lon', race.lon)
+  url.searchParams.set('units', 'metric')
+  url.searchParams.set('appid', process.env.OPENWEATHER_API_KEY ?? '')
+
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+  if (!res.ok) throw new Error(`예보 조회 실패 (${res.status})`)
+  const data = await res.json()
+
+  const hit = pickForecastAt(data.list, `${race.date}T${race.time}`)
+  if (!hit) return null
+
+  return {
+    temp: hit.main?.temp,
+    feelsLike: hit.main?.feels_like,
+    humidity: hit.main?.humidity,
+    windSpeed: hit.wind?.speed,
+    // lang=kr 응답은 '온흐림'처럼 어색해서 코드로 직접 옮긴다
+    description: describeWeather(hit.weather?.[0]?.id, hit.weather?.[0]?.description),
+    conditionId: hit.weather?.[0]?.id ?? null,
+    forecastFor: hit.dt_txt ?? null, // 어느 시점의 예보인지
+    isForecast: true,
+  }
+}
+
+/** 예보가 없을 때 쓰는 현재 날씨 */
+const fetchCurrentWeather = async (lat, lon) => {
   const url = new URL('https://api.openweathermap.org/data/2.5/weather')
   url.searchParams.set('lat', lat)
   url.searchParams.set('lon', lon)
   url.searchParams.set('units', 'metric')
-  url.searchParams.set('lang', 'kr')
   url.searchParams.set('appid', process.env.OPENWEATHER_API_KEY ?? '')
 
   const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
@@ -45,10 +83,15 @@ const fetchWeather = async (lat, lon) => {
     feelsLike: data.main?.feels_like,
     humidity: data.main?.humidity,
     windSpeed: data.wind?.speed,
-    description: data.weather?.[0]?.description ?? '',
+    description: describeWeather(data.weather?.[0]?.id, data.weather?.[0]?.description),
     conditionId: data.weather?.[0]?.id ?? null,
+    isForecast: false,
   }
 }
+
+/** 예보를 우선 쓰고, 범위를 벗어나면 현재 날씨로 물러난다 */
+const fetchWeather = async (race) =>
+  (await fetchRaceForecast(race)) ?? (await fetchCurrentWeather(race.lat, race.lon))
 
 /** 저장해 둔 리프레시 토큰으로 Gmail 클라이언트를 만든다 */
 const gmailClient = () => {
@@ -69,7 +112,13 @@ const loadPlans = async () => {
 export const notifyRaceWeather = async (req, res) => {
   const startedAt = Date.now()
   try {
-    const dayKey = tomorrowKey(new Date(), TIME_ZONE)
+    const { dayKey, overridden, error } = resolveDayKey(req?.query?.date, new Date(), TIME_ZONE)
+    if (error) {
+      console.warn(error)
+      return res.status(400).json({ error })
+    }
+    if (overridden) console.log(`날짜 지정 호출: ${dayKey}`)
+
     const race = findRaceOn(F1_CALENDAR_2026, dayKey, TIME_ZONE)
 
     if (!race) {
@@ -88,7 +137,7 @@ export const notifyRaceWeather = async (req, res) => {
     // 날씨는 한 번만 조회해 모든 수신자에게 재사용한다
     let weather = null
     try {
-      weather = await fetchWeather(race.lat, race.lon)
+      weather = await fetchWeather(race)
     } catch (err) {
       console.warn('날씨 조회 실패, 날씨 없이 발송합니다:', err.message)
     }

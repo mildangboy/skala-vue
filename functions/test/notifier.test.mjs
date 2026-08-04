@@ -1,12 +1,15 @@
 import {
   dateKeyInZone,
   tomorrowKey,
+  resolveDayKey,
+  pickForecastAt,
   findRaceOn,
   selectRecipients,
   buildSubject,
   buildHtml,
   buildRawMessage,
 } from '../notifier.js'
+import { describeWeather } from '../weatherText.js'
 
 let fail = 0
 const check = (name, ok, extra = '') => {
@@ -62,6 +65,62 @@ const race = findRaceOn(races, tomorrowKey(eve))
 check('네덜란드 GP 선택됨', race?.circuitId === 'zandvoort')
 const noRaceDay = findRaceOn(races, tomorrowKey(new Date('2026-08-10T10:00:00Z')))
 check('레이스 없는 날은 null', noRaceDay === null)
+
+console.log('\n=== 날짜 지정 호출 ===')
+const noon = new Date('2026-08-22T03:00:00Z') // KST 8/22 정오
+const auto = resolveDayKey(undefined, noon)
+check('date 없으면 내일', auto.dayKey === '2026-08-23' && auto.overridden === false, auto.dayKey)
+check('빈 문자열도 내일', resolveDayKey('', noon).dayKey === '2026-08-23')
+const given = resolveDayKey('2026-08-23', noon)
+check('date를 주면 그 날짜', given.dayKey === '2026-08-23' && given.overridden === true)
+check('먼 날짜도 그대로', resolveDayKey('2026-12-06', noon).dayKey === '2026-12-06')
+check('형식이 틀리면 거절', Boolean(resolveDayKey('2026/08/23', noon).error))
+check('일부만 주면 거절', Boolean(resolveDayKey('2026-08', noon).error))
+check('숫자가 아니면 거절', Boolean(resolveDayKey('내일', noon).error))
+check('문자열이 아니면 거절', Boolean(resolveDayKey(20260823, noon).error))
+// 형식만 맞고 실제로 없는 날 — Date.parse는 3월 2일로 넘겨버린다
+check('2월 30일 거절', Boolean(resolveDayKey('2026-02-30', noon).error))
+check('13월 거절', Boolean(resolveDayKey('2026-13-01', noon).error))
+check('윤년 아닌 2월 29일 거절', Boolean(resolveDayKey('2026-02-29', noon).error))
+check('윤년 2월 29일 허용', resolveDayKey('2028-02-29', noon).dayKey === '2028-02-29')
+// 지정한 날짜로 실제 레이스를 찾을 수 있어야 한다
+check(
+  '지정 날짜로 레이스 탐색',
+  findRaceOn(races, resolveDayKey('2026-08-23', noon).dayKey)?.circuitId === 'zandvoort',
+)
+
+console.log('\n=== 레이스 시각 예보 선택 ===')
+// 3시간 간격 예보를 흉내 낸다. 레이스는 2026-08-23T13:00:00Z
+const at = (iso) => ({ dt: Date.parse(iso) / 1000, dt_txt: iso.replace('T', ' ').replace('Z', '') })
+const forecast = [
+  at('2026-08-23T06:00:00Z'),
+  at('2026-08-23T09:00:00Z'),
+  at('2026-08-23T12:00:00Z'), // 레이스 1시간 전 — 가장 가까움
+  at('2026-08-23T15:00:00Z'),
+]
+const picked = pickForecastAt(forecast, '2026-08-23T13:00:00Z')
+check('레이스에 가장 가까운 시점', picked?.dt_txt === '2026-08-23 12:00:00', picked?.dt_txt)
+check(
+  '순서가 뒤섞여도 동일',
+  pickForecastAt([...forecast].reverse(), '2026-08-23T13:00:00Z')?.dt_txt === '2026-08-23 12:00:00',
+)
+check('정확히 일치하는 시점 우선', pickForecastAt(forecast, '2026-08-23T15:00:00Z')?.dt_txt === '2026-08-23 15:00:00')
+// 예보 범위 밖 — 5일 넘게 남은 레이스
+check('너무 먼 레이스는 null', pickForecastAt(forecast, '2026-09-06T13:00:00Z') === null)
+check('6시간 이내면 사용', pickForecastAt(forecast, '2026-08-23T20:00:00Z')?.dt_txt === '2026-08-23 15:00:00')
+check('6시간 넘으면 null', pickForecastAt(forecast, '2026-08-23T22:00:00Z') === null)
+check('빈 목록은 null', pickForecastAt([], '2026-08-23T13:00:00Z') === null)
+check('목록이 아니면 null', pickForecastAt(null, '2026-08-23T13:00:00Z') === null)
+check('잘못된 시각은 null', pickForecastAt(forecast, '없는날짜') === null)
+check('dt가 깨진 항목은 건너뜀', pickForecastAt([{ dt: 'x' }, ...forecast], '2026-08-23T13:00:00Z')?.dt_txt === '2026-08-23 12:00:00')
+
+console.log('\n=== 날씨 표현 한국어 ===')
+check('온흐림 → 흐림', describeWeather(804) === '흐림', describeWeather(804))
+check('튼구름 → 구름 많음', describeWeather(803) === '구름 많음', describeWeather(803))
+check('실비 → 이슬비', describeWeather(301) === '이슬비', describeWeather(301))
+check('맑음', describeWeather(800) === '맑음')
+check('표에 없으면 대분류로', describeWeather(599) === '비', describeWeather(599))
+check('범위 밖이면 API 원문', describeWeather(9999, '원문') === '원문')
 
 console.log('\n=== 발송 대상 선별 ===')
 const plans = [
