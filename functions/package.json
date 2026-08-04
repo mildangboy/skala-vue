@@ -1,0 +1,20 @@
+{
+  "name": "skala-weather-notifier",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "description": "레이스 전날 서킷 날씨를 메일로 보내는 예약 함수",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "start": "functions-framework --target=notifyRaceWeather",
+    "test": "node test/notifier.test.mjs"
+  },
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.4.2",
+    "@google-cloud/firestore": "^7.10.0",
+    "googleapis": "^144.0.0"
+  }
+}

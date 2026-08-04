@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { createPlan, deletePlan, fetchPlans, updatePlan } from '@/api/plans'
+import { createPlan, deletePlan, fetchPlans, hasFirestoreConfig, updatePlan } from '@/api/plans'
 
 const STORAGE_KEY = 'skala-vue:plans'
 
@@ -38,12 +38,18 @@ export const usePlanStore = defineStore('plan', () => {
   )
   const notifyCount = computed(() => plans.value.filter((p) => p.notify).length)
 
+  // Firestore 설정이 없으면 로컬 저장만으로 동작한다 (알림 발송은 불가)
+  const offline = !hasFirestoreConfig()
+
   const loadInitial = async () => {
-    if (plans.value.length) return // 로컬에 이미 있으면 서버 샘플을 덮어쓰지 않는다
+    if (offline) {
+      error.value = 'Firestore가 설정되지 않아 이 기기에만 저장됩니다. (functions/README.md 참고)'
+      return
+    }
     loading.value = true
     error.value = ''
     try {
-      plans.value = await fetchPlans(3)
+      plans.value = await fetchPlans()
       persist(plans.value)
     } catch (err) {
       error.value = err.message
@@ -59,6 +65,14 @@ export const usePlanStore = defineStore('plan', () => {
     const tempId = `temp-${Date.now()}`
     const optimistic = { ...draft, id: tempId, pending: true }
     plans.value = [optimistic, ...plans.value]
+    if (offline) {
+      plans.value = plans.value.map((p) =>
+        p.id === tempId ? { ...optimistic, pending: false } : p,
+      )
+      persist(plans.value)
+      saving.value = false
+      return optimistic
+    }
     try {
       const saved = await createPlan(draft)
       plans.value = plans.value.map((p) => (p.id === tempId ? { ...saved, pending: false } : p))

@@ -1,64 +1,133 @@
 import axios from 'axios'
 
 /**
- * 관전 플랜 CRUD.
- * 교재 실습과 동일하게 JSONPlaceholder를 연습용 백엔드로 사용한다.
- * 이 API는 실제로 저장하지 않고 요청을 그대로 되돌려주므로,
- * 화면 상태는 스토어가 낙관적으로 갱신하고 실패 시 롤백한다.
+ * 관전 플랜 CRUD — Google Cloud Firestore REST API.
+ *
+ * 예약 알림을 Cloud Function이 보내려면 서버가 읽을 수 있는 저장소가 필요해서
+ * 연습용 JSONPlaceholder에서 Firestore로 옮겼다. REST 엔드포인트를 Axios로
+ * 직접 호출하므로 교재의 POST/PUT/DELETE 실습 구조는 그대로 유지된다.
+ *
+ * 설정이 없으면(로컬에서 .env를 채우지 않은 경우) 호출하지 않고 안내를 던진다.
  */
+const PROJECT_ID = import.meta.env.VITE_FIREBASE_PROJECT_ID ?? ''
+const API_KEY = import.meta.env.VITE_FIREBASE_API_KEY ?? ''
+const COLLECTION = 'plans'
+
+export const hasFirestoreConfig = () => Boolean(PROJECT_ID && API_KEY)
+
 const client = axios.create({
-  baseURL: 'https://jsonplaceholder.typicode.com',
-  timeout: 8000,
+  baseURL: `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`,
+  timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
+})
+
+// 모든 요청에 API 키를 자동으로 붙인다.
+// updateMask처럼 같은 키를 여러 번 보내야 하는 경우 URLSearchParams로 들어오므로
+// 객체와 URLSearchParams 두 형태를 모두 받아준다.
+client.interceptors.request.use((config) => {
+  if (config.params instanceof URLSearchParams) {
+    config.params.set('key', API_KEY)
+  } else {
+    config.params = { key: API_KEY, ...config.params }
+  }
+  return config
 })
 
 client.interceptors.response.use(
   (res) => res,
   (error) => {
     const status = error?.response?.status
+    const detail = error?.response?.data?.error?.message
     const message =
-      status === 404
-        ? '해당 플랜을 서버에서 찾을 수 없습니다.'
-        : status >= 500
-          ? '서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
-          : (error?.message ?? '요청을 처리하지 못했습니다.')
+      status === 400
+        ? `요청 형식이 올바르지 않습니다. ${detail ?? ''}`.trim()
+        : status === 401 || status === 403
+          ? 'Firestore 접근이 거부되었습니다. API 키와 보안 규칙을 확인해주세요.'
+          : status === 404
+            ? '해당 플랜을 찾을 수 없습니다.'
+            : status >= 500
+              ? '서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요.'
+              : (detail ?? error?.message ?? '요청을 처리하지 못했습니다.')
     return Promise.reject(new Error(message))
   },
 )
 
-// GET — 초기 목록 (연습 API의 posts를 플랜 형태로 매핑)
-export const fetchPlans = async (limit = 3) => {
-  const { data } = await client.get('/posts', { params: { _limit: limit } })
-  return data.map((item) => ({
-    id: item.id,
-    circuitId: '',
-    circuitName: '(불러온 샘플)',
-    email: `user${item.id}@example.com`,
-    people: 1,
-    excitement: 3,
-    notify: false,
-    memo: item.title,
-  }))
+/* ── Firestore 문서 형식 ↔ 앱 객체 변환 ─────────────────────────
+   Firestore REST는 값마다 타입을 명시한 형태({ stringValue: 'x' })를 쓴다.
+   앱에서는 평범한 객체로 다루고 경계에서만 변환한다.            */
+
+const toFirestoreValue = (v) => {
+  if (v === null || v === undefined) return { nullValue: null }
+  if (typeof v === 'boolean') return { booleanValue: v }
+  if (typeof v === 'number')
+    return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }
+  return { stringValue: String(v) }
 }
 
-// POST — 신규 등록
+const fromFirestoreValue = (v) => {
+  if (!v || typeof v !== 'object') return null
+  if ('nullValue' in v) return null
+  if ('booleanValue' in v) return v.booleanValue
+  if ('integerValue' in v) return Number(v.integerValue)
+  if ('doubleValue' in v) return Number(v.doubleValue)
+  if ('timestampValue' in v) return v.timestampValue
+  return v.stringValue ?? null
+}
+
+const PLAN_FIELDS = [
+  'circuitId',
+  'circuitName',
+  'round',
+  'email',
+  'people',
+  'excitement',
+  'notify',
+  'memo',
+]
+
+const toDocument = (plan) => ({
+  fields: Object.fromEntries(PLAN_FIELDS.map((k) => [k, toFirestoreValue(plan[k])])),
+})
+
+// 문서 경로(projects/../documents/plans/abc123)에서 문서 ID만 뽑는다
+const docId = (name) =>
+  String(name ?? '')
+    .split('/')
+    .pop()
+
+const fromDocument = (doc) => {
+  const fields = doc?.fields ?? {}
+  const plan = Object.fromEntries(PLAN_FIELDS.map((k) => [k, fromFirestoreValue(fields[k])]))
+  return { ...plan, id: docId(doc?.name) }
+}
+
+/* ── CRUD ───────────────────────────────────────────────────── */
+
+// GET — 목록 조회
+export const fetchPlans = async (limit = 20) => {
+  const { data } = await client.get(`/${COLLECTION}`, { params: { pageSize: limit } })
+  return (data.documents ?? []).map(fromDocument)
+}
+
+// POST — 신규 등록 (Firestore가 문서 ID를 생성)
 export const createPlan = async (plan) => {
-  const { data } = await client.post('/posts', { title: plan.memo, body: JSON.stringify(plan) })
-  return { ...plan, id: data.id }
+  const { data } = await client.post(`/${COLLECTION}`, toDocument(plan))
+  return fromDocument(data)
 }
 
-// PUT — 수정
+// PATCH — 수정
 export const updatePlan = async (plan) => {
-  const { data } = await client.put(`/posts/${plan.id}`, {
-    id: plan.id,
-    title: plan.memo,
-    body: JSON.stringify(plan),
-  })
-  return { ...plan, id: data.id ?? plan.id }
+  // updateMask를 명시하지 않으면 문서 전체가 교체된다.
+  // 같은 키를 필드 수만큼 반복해야 해서 URLSearchParams를 쓴다.
+  const params = new URLSearchParams()
+  PLAN_FIELDS.forEach((f) => params.append('updateMask.fieldPaths', f))
+
+  const { data } = await client.patch(`/${COLLECTION}/${plan.id}`, toDocument(plan), { params })
+  return fromDocument(data)
 }
 
 // DELETE — 삭제
 export const deletePlan = async (id) => {
-  await client.delete(`/posts/${id}`)
+  await client.delete(`/${COLLECTION}/${id}`)
   return id
 }
