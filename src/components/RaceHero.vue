@@ -1,12 +1,13 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Timer, LocationInformation, TrendCharts } from '@element-plus/icons-vue'
+import { Timer, LocationInformation, TrendCharts, InfoFilled } from '@element-plus/icons-vue'
 import { formatTemp } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { raceStartDate } from '@/data/f1Calendar2026'
 import { shapeOf } from '@/data/circuitShapes'
 import CircuitOutline from './CircuitOutline.vue'
+import RaceInfoDialog from './RaceInfoDialog.vue'
 
 const props = defineProps({
   race: { type: Object, default: null },
@@ -16,6 +17,8 @@ const props = defineProps({
 })
 
 const router = useRouter()
+
+const infoOpen = ref(false)
 
 // 도형이 없는 서킷(아직 OSM에 없는 신설 트랙)에서는 라벨까지 통째로 감춘다
 const hasLayout = computed(() => Boolean(shapeOf(props.race?.circuitId)))
@@ -88,6 +91,7 @@ const goDetail = () => {
           서킷 날씨 상세 보기
         </el-button>
         <el-button round text @click="router.push({ name: 'f1-calendar' })">시즌 캘린더</el-button>
+        <el-button round text :icon="InfoFilled" @click="infoOpen = true">그랑프리 정보</el-button>
       </div>
 
       <!-- 레이스 카운트다운 -->
@@ -118,6 +122,7 @@ const goDetail = () => {
         <p class="race-hero__time">{{ raceLocalTime }} (내 시간대)</p>
       </div>
     </footer>
+    <RaceInfoDialog v-model="infoOpen" :race="race" />
   </section>
 </template>
 

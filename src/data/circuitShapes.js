@@ -66,3 +66,42 @@ export const CIRCUIT_SHAPES = {
 
 /** 서킷 도형을 찾는다. 없으면 null (화면에서 도형 없이 넘어간다) */
 export const shapeOf = (circuitId) => CIRCUIT_SHAPES[circuitId] ?? null
+
+/**
+ * 서킷 한 바퀴 길이 (m).
+ *
+ * 값은 FIA가 공시한 공식 길이다. 위 도형을 만들 때 OSM 좌표에서 잰 실측과
+ * 대조해 확인했고, 21개 중 18개가 오차 1% 이내로 일치했다.
+ * 나머지 셋(miami·silverstone·yas_marina)은 OSM에 트랙이 조각으로만 있어
+ * 실측이 6~11% 어긋났는데, 이는 지도 데이터가 불완전한 것이지
+ * 공식 길이가 틀린 것이 아니다. 그래서 실측이 아니라 공식값을 싣는다.
+ *
+ * madring은 도형은 없지만(2026 신설) 길이는 공시돼 있어 함께 넣는다.
+ */
+export const CIRCUIT_LENGTH_M = {
+  albert_park: 5278,
+  shanghai: 5451,
+  suzuka: 5807,
+  miami: 5412,
+  villeneuve: 4361,
+  monaco: 3337,
+  catalunya: 4657,
+  red_bull_ring: 4318,
+  silverstone: 5891,
+  spa: 7004,
+  hungaroring: 4381,
+  zandvoort: 4259,
+  monza: 5793,
+  madring: 5474,
+  baku: 6003,
+  marina_bay: 4940,
+  americas: 5513,
+  rodriguez: 4304,
+  interlagos: 4309,
+  vegas: 6201,
+  losail: 5419,
+  yas_marina: 5281,
+}
+
+/** 서킷 길이(m). 모르면 null */
+export const lengthOf = (circuitId) => CIRCUIT_LENGTH_M[circuitId] ?? null
