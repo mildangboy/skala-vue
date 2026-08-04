@@ -44,7 +44,17 @@ export const useF1Store = defineStore('f1', () => {
 
   const tick = () => (now.value = new Date())
 
-  const loadCalendar = async () => {
+  /**
+   * 시즌 일정을 받아온다.
+   *
+   * races는 처음부터 내장 캘린더로 채워져 있다. 빈 화면을 보여주지 않으려는 것인데,
+   * 그래서 '비어 있으면 받아온다'는 식의 조건은 영원히 거짓이 된다.
+   * 이미 받아왔는지는 개수가 아니라 source로 판단해야 한다.
+   *
+   * 라이브 일정은 하루 안에 바뀌지 않으므로 한 번 받으면 다시 부르지 않는다.
+   */
+  const loadCalendar = async ({ force = false } = {}) => {
+    if (source.value === 'live' && !force) return
     loading.value = true
     try {
       const { races: list, source: src } = await fetchSeasonCalendar()

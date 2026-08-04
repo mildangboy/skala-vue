@@ -46,20 +46,21 @@ watch(open, (isOpen) => {
 /* ── 주말 일정 ─────────────────────────────────────────────── */
 
 const SESSION_LABEL = {
-  fp1: '연습 1',
-  fp2: '연습 2',
-  fp3: '연습 3',
-  sprintQualifying: '스프린트 예선',
-  sprint: '스프린트',
-  qualifying: '예선',
+  fp1: 'FP1',
+  fp2: 'FP2',
+  fp3: 'FP3',
+  sprintQualifying: 'Sprint Qualifying',
+  sprint: 'Sprint',
+  qualifying: 'Qualifying',
 }
-// 실제 주말 진행 순서
-const SESSION_ORDER = ['fp1', 'sprintQualifying', 'fp2', 'sprint', 'fp3', 'qualifying']
-
-const fmtDateTime = (date, time) => {
-  if (!date) return ''
+const startOf = (date, time) => {
+  if (!date) return null
   const at = new Date(`${date}T${time ?? '00:00:00Z'}`)
-  if (Number.isNaN(at.getTime())) return ''
+  return Number.isNaN(at.getTime()) ? null : at
+}
+
+const fmtDateTime = (at) => {
+  if (!at) return ''
   return at.toLocaleString('ko-KR', {
     month: 'numeric',
     day: 'numeric',
@@ -69,24 +70,36 @@ const fmtDateTime = (date, time) => {
   })
 }
 
+/**
+ * 주말 세션을 시각 순으로 늘어놓는다.
+ *
+ * API는 세션을 이름 붙은 필드로만 줘서 순서 정보가 없다.
+ * 진행 순서를 배열로 적어두는 방법도 있지만, 주말 형식이 바뀌면
+ * (스프린트 주말은 연습이 하나뿐이다) 그 배열을 같이 고쳐야 하고
+ * 어긋나도 눈치채기 어렵다. 각 세션이 자기 시각을 갖고 있으니 그걸로 정렬한다.
+ */
 const sessions = computed(() => {
   const s = props.race?.sessions ?? {}
-  const rows = SESSION_ORDER.filter((k) => s[k]?.date).map((k) => ({
-    key: k,
-    label: SESSION_LABEL[k],
-    when: fmtDateTime(s[k].date, s[k].time),
-  }))
-  // 결승은 항상 마지막에, 강조해서
-  if (props.race?.date) {
-    rows.push({
-      key: 'race',
-      label: '결승',
-      when: fmtDateTime(props.race.date, props.race.time),
-      main: true,
-    })
-  }
-  return rows
+
+  const rows = Object.keys(SESSION_LABEL)
+    .map((k) => ({ key: k, label: SESSION_LABEL[k], at: startOf(s[k]?.date, s[k]?.time) }))
+    .filter((r) => r.at)
+
+  // 결승은 sessions가 아니라 race 자체에 시각이 있다
+  const raceAt = startOf(props.race?.date, props.race?.time)
+  if (raceAt) rows.push({ key: 'race', label: '결승', at: raceAt, main: true })
+
+  return rows.sort((a, b) => a.at - b.at).map((r) => ({ ...r, when: fmtDateTime(r.at) }))
 })
+
+/**
+ * 결승 말고 연습·예선 시각까지 알고 있는지.
+ *
+ * 세션 시각은 라이브 API에만 있다. 네트워크가 막혀 내장 캘린더로 물러나면
+ * 결승 하나만 남는데, 그것만 두고 '주말 일정'이라 하면
+ * 정보를 못 받은 건지 원래 그런 건지 알 수 없다. 그럴 땐 안내를 덧붙인다.
+ */
+const hasSessionTimes = computed(() => sessions.value.some((s) => !s.main))
 
 /* ── 서킷 제원 ─────────────────────────────────────────────── */
 
@@ -98,16 +111,40 @@ const lengthKm = computed(() => {
   return m ? (m / 1000).toFixed(3) : null
 })
 
+/** "1:20.901" -> 밀리초. 형식이 다르면 Infinity라 비교에서 자동으로 밀린다. */
+const lapMs = (t) => {
+  const m = /^(\d+):(\d+)\.(\d+)$/.exec(t ?? '')
+  if (!m) return Infinity
+  return Number(m[1]) * 60000 + Number(m[2]) * 1000 + Number(m[3])
+}
+
 /** 최근 기록 중 가장 빠른 랩 (여러 시즌 중 최고) */
 const bestLap = computed(() => {
   const laps = history.value.filter((h) => h.fastestLap?.time)
   if (!laps.length) return null
-  const toMs = (t) => {
-    const m = /^(\d+):(\d+)\.(\d+)$/.exec(t)
-    if (!m) return Infinity
-    return Number(m[1]) * 60000 + Number(m[2]) * 1000 + Number(m[3])
-  }
-  return laps.reduce((best, h) => (toMs(h.fastestLap.time) < toMs(best.fastestLap.time) ? h : best))
+  return laps.reduce((best, h) => (lapMs(h.fastestLap.time) < lapMs(best.fastestLap.time) ? h : best))
+})
+
+/**
+ * 최고 랩의 평균 속도.
+ *
+ * API가 평균 속도를 같이 주지만 최근 시즌에는 빠져 있을 때가 있다
+ * (2025 몬차가 그렇다). 하필 최고 기록이 그 시즌이면 속도만 사라진다.
+ *
+ * 그래서 값이 없으면 직접 계산한다. 서킷 길이 ÷ 랩 타임인데,
+ * 값이 있는 시즌들로 대조해보니 API 값과 소수점 셋째 자리까지 같았다
+ * (몬차·실버스톤·스파·잔드보르트·스즈카 10건, 오차 0.000%).
+ * 즉 API도 같은 계산을 하고 있어서, 채워 넣어도 성격이 다른 값이 섞이지 않는다.
+ */
+const bestSpeedKph = computed(() => {
+  const lap = bestLap.value?.fastestLap
+  if (!lap) return null
+  if (lap.speedKph) return lap.speedKph
+
+  const meters = lengthOf(props.race?.circuitId)
+  const ms = lapMs(lap.time)
+  if (!meters || !Number.isFinite(ms) || ms <= 0) return null
+  return (meters / (ms / 1000)) * 3.6
 })
 </script>
 
@@ -136,7 +173,7 @@ const bestLap = computed(() => {
             <dd>{{ race.locality }}, {{ race.country }}</dd>
           </div>
           <div v-if="lengthKm">
-            <dt>한 바퀴</dt>
+            <dt>총 연장</dt>
             <dd class="mono-num">{{ lengthKm }} km</dd>
           </div>
           <div>
@@ -148,13 +185,16 @@ const bestLap = computed(() => {
 
       <!-- 주말 일정 -->
       <section>
-        <h3 class="race-info__heading">주말 일정 <span>내 시간대</span></h3>
+        <h3 class="race-info__heading">주말 일정 <span>UTC +9</span></h3>
         <ul class="race-info__sessions">
           <li v-for="s in sessions" :key="s.key" :class="{ 'is-main': s.main }">
             <span>{{ s.label }}</span>
             <span class="mono-num">{{ s.when }}</span>
           </li>
         </ul>
+        <p v-if="!hasSessionTimes" class="race-info__note">
+          연습·예선 시각은 아직 받아오지 못했습니다. 잠시 후 다시 열어보세요.
+        </p>
       </section>
 
       <!-- 역대 기록 -->
@@ -187,11 +227,11 @@ const bestLap = computed(() => {
           </ul>
 
           <div v-if="bestLap" class="race-info__best">
-            <span class="race-info__best-label">최고 랩 ({{ bestLap.season }})</span>
+            <span class="race-info__best-label">Fastest Lap ({{ bestLap.season }})</span>
             <strong class="mono-num">{{ bestLap.fastestLap.time }}</strong>
             <span>{{ bestLap.fastestLap.name }}</span>
-            <span v-if="bestLap.fastestLap.speedKph" class="mono-num">
-              평균 {{ bestLap.fastestLap.speedKph.toFixed(1) }} km/h
+            <span v-if="bestSpeedKph" class="mono-num">
+              평균 속도 {{ bestSpeedKph.toFixed(1) }} KPH
             </span>
           </div>
         </template>
@@ -344,6 +384,11 @@ const bestLap = computed(() => {
 .race-info__empty {
   margin: 0;
   font-size: 13px;
+  color: var(--text-muted);
+}
+.race-info__note {
+  margin: 10px 0 0;
+  font-size: 12px;
   color: var(--text-muted);
 }
 

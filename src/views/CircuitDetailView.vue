@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Sunny, Odometer, Watch } from '@element-plus/icons-vue'
+import { ArrowLeft, Sunny, Odometer, Watch, InfoFilled } from '@element-plus/icons-vue'
 import { fetchCurrentWeatherByCoords, fetchForecastByCoords } from '@/api/weather'
 import { formatTemp, formatHour, formatWeekday, formatDate } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
@@ -14,6 +14,7 @@ import RefreshButton from '@/components/RefreshButton.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import TempChart from '@/components/TempChart.vue'
 import RaceConditionPanel from '@/components/RaceConditionPanel.vue'
+import RaceInfoDialog from '@/components/RaceInfoDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -27,6 +28,8 @@ const error = ref('')
 const chartHours = ref(8) // 차트에 표시할 예보 구간 (el-input-number로 조절)
 
 const race = computed(() => f1.findRace(route.params.circuitId))
+
+const infoOpen = ref(false)
 
 const raceTimeLabel = computed(() =>
   race.value
@@ -92,7 +95,7 @@ const load = async () => {
 const { refresh, refreshing, lastUpdated, paused } = useAutoRefresh(load)
 
 onMounted(async () => {
-  if (!f1.races.length) await f1.loadCalendar()
+  await f1.loadCalendar()
   load()
 })
 
@@ -126,6 +129,15 @@ watch([() => route.params.circuitId, () => config.unit], load)
           <p class="circuit-hero__time">
             <el-icon><Watch /></el-icon>{{ raceTimeLabel }}
           </p>
+          <el-button
+            class="circuit-hero__info"
+            round
+            size="small"
+            :icon="InfoFilled"
+            @click="infoOpen = true"
+          >
+            그랑프리 정보
+          </el-button>
         </div>
 
         <div v-if="current" class="circuit-hero__now">
@@ -135,6 +147,7 @@ watch([() => route.params.circuitId, () => config.unit], load)
           </div>
           <div class="circuit-hero__desc">{{ current.description }}</div>
         </div>
+        <RaceInfoDialog v-model="infoOpen" :race="race" />
       </section>
 
       <SkeletonCard v-if="loading" height="180px" :lines="3" />
@@ -280,6 +293,9 @@ watch([() => route.params.circuitId, () => config.unit], load)
   margin: 8px 0 0;
   font-size: 12px;
   color: var(--text-muted);
+}
+.circuit-hero__info {
+  margin-top: 14px;
 }
 .circuit-hero__now {
   text-align: right;
