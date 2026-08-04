@@ -41,8 +41,8 @@ watch(
       <RouterLink :to="{ name: 'weather-home' }" class="brand">
         <span class="brand__star" aria-hidden="true" />
         <span class="brand__text">
-          <strong>SKALA</strong>
-          <em>WEATHER</em>
+          <strong>Weather F1</strong>
+          <em>날씨와 F1을 한번에</em>
         </span>
       </RouterLink>
 
