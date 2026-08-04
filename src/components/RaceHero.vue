@@ -5,6 +5,7 @@ import { Timer, LocationInformation, TrendCharts } from '@element-plus/icons-vue
 import { formatTemp } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { raceStartDate } from '@/data/f1Calendar2026'
+import { shapeOf } from '@/data/circuitShapes'
 import CircuitOutline from './CircuitOutline.vue'
 
 const props = defineProps({
@@ -15,6 +16,9 @@ const props = defineProps({
 })
 
 const router = useRouter()
+
+// 도형이 없는 서킷(아직 OSM에 없는 신설 트랙)에서는 라벨까지 통째로 감춘다
+const hasLayout = computed(() => Boolean(shapeOf(props.race?.circuitId)))
 
 const raceLocalTime = computed(() => {
   if (!props.race) return ''
@@ -49,33 +53,41 @@ const goDetail = () => {
       >
     </header>
 
-    <div class="race-hero__headline">
-      <div class="race-hero__headline-text">
+    <div class="race-hero__body">
+      <!-- 왼쪽: 제목 · 날씨 · 버튼 -->
+      <div class="race-hero__main">
         <h1 class="race-hero__title">{{ race.name }}</h1>
         <p class="race-hero__circuit">
           <el-icon><LocationInformation /></el-icon>
           {{ race.circuit }} · {{ race.locality }}, {{ race.country }}
         </p>
+
+        <!-- 서킷 현재 날씨 (Apple Weather 히어로 온도 표현) -->
+        <div class="race-hero__weather">
+          <template v-if="weather">
+            <span class="race-hero__icon">{{ iconEmoji(weather.icon) }}</span>
+            <div>
+              <div class="race-hero__temp temp-display">{{ formatTemp(weather.temp, unit) }}</div>
+              <div class="race-hero__desc">{{ weather.description }}</div>
+            </div>
+          </template>
+          <div v-else class="race-hero__weather-empty">서킷 날씨 불러오는 중…</div>
+        </div>
       </div>
 
-      <!-- 서킷 모양은 제목·위치와 같은 높이에 둔다 -->
-      <figure class="race-hero__layout">
+      <!-- 오른쪽: 서킷 도형. 도형이 없으면 라벨까지 통째로 감춘다 -->
+      <figure v-if="hasLayout" class="race-hero__layout">
         <figcaption>CIRCUIT LAYOUT</figcaption>
         <CircuitOutline :circuit-id="race.circuitId" :label="race.name" />
       </figure>
     </div>
 
-    <div class="race-hero__body">
-      <!-- 서킷 현재 날씨 (Apple Weather 히어로 온도 표현) -->
-      <div class="race-hero__weather">
-        <template v-if="weather">
-          <span class="race-hero__icon">{{ iconEmoji(weather.icon) }}</span>
-          <div>
-            <div class="race-hero__temp temp-display">{{ formatTemp(weather.temp, unit) }}</div>
-            <div class="race-hero__desc">{{ weather.description }}</div>
-          </div>
-        </template>
-        <div v-else class="race-hero__weather-empty">서킷 날씨 불러오는 중…</div>
+    <footer class="race-hero__footer">
+      <div class="race-hero__actions">
+        <el-button type="primary" round :icon="TrendCharts" @click="goDetail">
+          서킷 날씨 상세 보기
+        </el-button>
+        <el-button round text @click="router.push({ name: 'f1-calendar' })">시즌 캘린더</el-button>
       </div>
 
       <!-- 레이스 카운트다운 -->
@@ -105,13 +117,6 @@ const goDetail = () => {
         <div v-else class="race-hero__live">LIGHTS OUT 🏁</div>
         <p class="race-hero__time">{{ raceLocalTime }} (내 시간대)</p>
       </div>
-    </div>
-
-    <footer class="race-hero__footer">
-      <el-button type="primary" round :icon="TrendCharts" @click="goDetail">
-        서킷 날씨 상세 보기
-      </el-button>
-      <el-button round text @click="router.push({ name: 'f1-calendar' })">시즌 캘린더</el-button>
     </footer>
   </section>
 </template>
@@ -195,48 +200,45 @@ const goDetail = () => {
   position: relative;
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-top: 26px;
+  margin-top: 14px;
 }
 .race-hero__weather {
   display: flex;
   align-items: center;
   gap: 16px;
+  margin-top: 22px;
 }
 /*
- * 제목·위치와 서킷 모양을 한 줄에 둔다.
- * 모양이 아래쪽 온도/카운트다운 사이에 홀로 떠 있으면 따로 노는 느낌이 나서,
- * 제목 블록과 같은 높이로 맞춰 하나의 머리글처럼 읽히게 했다.
+ * 왼쪽에 제목·위치·날씨를 쌓고, 오른쪽 남는 자리를 서킷 모양이 통째로 쓴다.
+ * 카운트다운을 아래 버튼 줄로 내려 이 공간을 비워둔 덕에
+ * 도형을 알아볼 수 있는 크기로 키울 수 있다.
  */
-.race-hero__headline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 28px;
-}
-.race-hero__headline-text {
+.race-hero__main {
   min-width: 0;
+  flex: 1 1 300px;
 }
 .race-hero__layout {
   margin: 0;
-  flex: none;
-  width: 132px;
+  flex: 0 1 240px;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
 }
 .race-hero__layout figcaption {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   color: var(--text-muted);
   white-space: nowrap;
 }
 .race-hero__layout :deep(.circuit-outline) {
-  height: 84px;
+  height: 168px;
 }
 .race-hero__icon {
   font-size: 58px;
@@ -310,11 +312,20 @@ const goDetail = () => {
   font-size: 12px;
   color: var(--text-muted);
 }
+/* 버튼과 카운트다운을 한 줄에 둔다 (요청: 카운트다운을 버튼 높이에 맞춰 내림) */
 .race-hero__footer {
   position: relative;
   display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 22px;
+  flex-wrap: wrap;
+}
+.race-hero__actions {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 24px;
   flex-wrap: wrap;
 }
 

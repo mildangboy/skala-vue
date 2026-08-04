@@ -77,12 +77,29 @@ const path = computed(() => {
  * 서킷마다 다른 실제 길이와 무관하게 같은 비율로 그려진다.
  * (길이를 재서 CSS 변수로 넘기면 keyframe에서 보간되지 않아 애니메이션이 멈춘다)
  */
+const DURATION = 5 // 초. keyframes의 길이와 맞춰야 한다.
 const COMET = [
   { len: 0.18, width: 1.5, opacity: 0.12 },
   { len: 0.1, width: 1.8, opacity: 0.28 },
   { len: 0.045, width: 2, opacity: 0.6 },
   { len: 0.014, width: 2.4, opacity: 1 },
 ]
+const HEAD = Math.max(...COMET.map((c) => c.len))
+
+/**
+ * 겹마다 시작 위치를 어긋나게 한다.
+ *
+ * dasharray는 경로 시작점부터 그리므로 그냥 겹치면 모든 선의 *뒤끝*이 맞고
+ * 앞끝은 긴 선일수록 멀리 나간다. 그러면 흐린 긴 선이 앞서고 밝은 짧은 선이
+ * 뒤따라가, 진행 방향이 반대로 보인다.
+ *
+ * 앞끝을 맞춰야 밝은 머리가 앞장선다. 각 선을 (가장 긴 길이 − 자기 길이)만큼
+ * 앞으로 밀면 되는데, 애니메이션이 한 바퀴에 DURATION초이므로
+ * 그 비율만큼 음수 delay를 주면 같은 효과가 난다.
+ */
+const cometStyle = (len) => ({
+  animationDelay: `${-(HEAD - len) * DURATION}s`,
+})
 </script>
 
 <template>
@@ -107,6 +124,7 @@ const COMET = [
       :stroke-dasharray="`${c.len} ${1 - c.len}`"
       :stroke-width="c.width"
       :opacity="c.opacity"
+      :style="cometStyle(c.len)"
     />
   </svg>
 </template>
