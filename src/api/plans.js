@@ -86,14 +86,19 @@ const fromFirestoreValue = (v) => {
  * 문서에 저장하는 필드 목록.
  *
  * ownerUid가 빠지면 저장 요청에 소유자 표시가 실리지 않아
- * 보안 규칙(claimsSelf)이 모든 쓰기를 거부한다. 조회 조건도 이 필드를 쓴다.
+ * 보안 규칙(claimsSelf)이 모든 쓰기를 거부한다.
+ *
+ * 이메일은 일부러 넣지 않는다. 목록이 로그인한 모두에게 공개라
+ * 문서에 담으면 남의 주소가 그대로 보인다. 알림은 어차피 계정 주소로만
+ * 나가므로 발송 시점에 함수가 Firebase Auth에서 꺼내 쓴다.
+ * 화면에는 작성자가 정한 nickname을 보여준다.
  */
 const PLAN_FIELDS = [
   'ownerUid',
+  'nickname',
   'circuitId',
   'circuitName',
   'round',
-  'email',
   'people',
   'excitement',
   'notify',
@@ -119,23 +124,14 @@ const fromDocument = (doc) => {
 /* ── CRUD ───────────────────────────────────────────────────── */
 
 /**
- * GET — 본인 플랜만 조회.
- * 보안 규칙이 소유자 문서만 읽도록 막고 있어, 쿼리에도 같은 조건을 넣어야 한다.
- * (조건 없이 컬렉션 전체를 요청하면 규칙 위반으로 거부된다)
+ * GET — 모든 플랜 조회.
+ * 로그인한 사람은 서로의 플랜을 볼 수 있고, 수정·삭제만 작성자로 제한된다.
+ * 문서에 이메일이 없으므로 목록이 공개돼도 남의 주소가 드러나지 않는다.
  */
-export const fetchPlans = async (ownerUid, limit = 20) => {
-  if (!ownerUid) return []
-
+export const fetchPlans = async (limit = 50) => {
   const { data } = await client.post(':runQuery', {
     structuredQuery: {
       from: [{ collectionId: COLLECTION }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: 'ownerUid' },
-          op: 'EQUAL',
-          value: { stringValue: ownerUid },
-        },
-      },
       limit,
     },
   })

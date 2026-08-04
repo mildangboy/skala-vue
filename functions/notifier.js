@@ -65,9 +65,13 @@ export const findRaceOn = (races, dayKey, timeZone = 'Asia/Seoul') =>
 /**
  * 발송 대상 선별.
  * - notify가 켜져 있고
- * - 이메일이 있고
  * - 해당 레이스를 구독한 플랜만
- * 같은 주소가 여러 플랜을 걸어둔 경우 한 번만 보낸다.
+ *
+ * 주소는 플랜에 저장하지 않는다. 목록이 로그인한 모두에게 공개라
+ * 문서에 담으면 남의 주소가 그대로 보이기 때문이다.
+ * 대신 소유자(ownerUid)를 돌려주고, 부르는 쪽이 계정에서 주소를 찾는다.
+ *
+ * 한 사람이 같은 레이스에 여러 플랜을 걸어둬도 한 번만 보낸다.
  */
 export const selectRecipients = (plans, race) => {
   if (!race) return []
@@ -75,12 +79,11 @@ export const selectRecipients = (plans, race) => {
   const out = []
   for (const p of plans) {
     if (!p?.notify) continue
-    if (!p?.email || !p.email.includes('@')) continue
+    if (!p?.ownerUid) continue
     if (p.circuitId !== race.circuitId) continue
-    const key = p.email.trim().toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    out.push({ email: p.email.trim(), plan: p })
+    if (seen.has(p.ownerUid)) continue
+    seen.add(p.ownerUid)
+    out.push({ ownerUid: p.ownerUid, plan: p })
   }
   return out
 }

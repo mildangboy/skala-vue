@@ -30,7 +30,7 @@ const { user, isSignedIn, ready, configured } = storeToRefs(auth)
       <strong>{{ user.displayName }}</strong>
       <span>{{ user.email }}</span>
     </div>
-    <span class="account__badge">내 플랜만 표시 중</span>
+    <span class="account__badge">수정·삭제는 내 플랜만</span>
   </div>
 
   <!-- 로그인 전: 헤더의 로그인 버튼으로 안내 -->

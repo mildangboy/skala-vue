@@ -16,19 +16,19 @@ const props = defineProps({
   unit: { type: String, default: 'metric' },
   saving: { type: Boolean, default: false },
   editing: { type: Object, default: null },
-  // 로그인 계정 이메일. 값이 있으면 이 주소로 고정한다.
-  accountEmail: { type: String, default: '' },
+  // 별명을 비워 뒀을 때 채워 넣을 기본값 (로그인 계정 이름)
+  defaultNickname: { type: String, default: '' },
 })
 
 const emit = defineEmits(['submit', 'cancel'])
 
 const formRef = ref(null)
 
-// 비울 때도 이메일은 로그인 계정 주소로 되돌린다.
-// 빈 문자열로 두면 폼 초기화가 계정 이메일을 지워버린다.
+// 비울 때도 별명은 계정 이름으로 되돌린다.
+// 빈 문자열로 두면 폼 초기화가 방금 채운 값을 지운다.
 const blankForm = () => ({
   circuitId: '',
-  email: props.accountEmail,
+  nickname: props.defaultNickname,
   people: 2,
   excitement: 4,
   notify: false,
@@ -38,11 +38,11 @@ const form = reactive(blankForm())
 
 const isEditing = computed(() => Boolean(props.editing))
 
-// 로그인 계정이 있으면 이메일을 항상 그 주소로 맞춘다 (서버 규칙과 동일한 제약)
+// 로그인 정보가 늦게 들어오면 비어 있는 별명만 채운다 (입력 중이면 건드리지 않는다)
 watch(
-  () => props.accountEmail,
-  (email) => {
-    if (email) form.email = email
+  () => props.defaultNickname,
+  (name) => {
+    if (name && !form.nickname) form.nickname = name
   },
   { immediate: true },
 )
@@ -54,7 +54,7 @@ watch(
     if (plan) {
       Object.assign(form, {
         circuitId: plan.circuitId,
-        email: plan.email,
+        nickname: plan.nickname,
         people: plan.people,
         excitement: plan.excitement,
         notify: plan.notify,
@@ -70,9 +70,9 @@ watch(
 
 const rules = {
   circuitId: [{ required: true, message: '관전할 그랑프리를 선택해주세요.', trigger: 'change' }],
-  email: [
-    { required: true, message: '이메일을 입력해주세요.', trigger: 'blur' },
-    { type: 'email', message: '올바른 이메일 형식이 아닙니다.', trigger: ['blur', 'change'] },
+  nickname: [
+    { required: true, message: '표시할 별명을 입력해주세요.', trigger: 'blur' },
+    { max: 20, message: '별명은 20자 이내로 입력해주세요.', trigger: 'blur' },
   ],
   people: [
     {
@@ -137,14 +137,10 @@ defineExpose({ reset })
           </el-select>
         </el-form-item>
 
-        <el-form-item prop="email" label="알림 받을 이메일">
-          <el-input
-            v-model.trim="form.email"
-            :disabled="Boolean(accountEmail)"
-            placeholder="example@email.com"
-          />
-          <span v-if="accountEmail" class="plan-form__hint">
-            로그인한 계정 주소로만 발송됩니다
+        <el-form-item prop="nickname" label="표시할 별명">
+          <el-input v-model.trim="form.nickname" maxlength="20" placeholder="다른 사람에게 보일 이름" />
+          <span class="plan-form__hint">
+            목록에 이 이름으로 표시됩니다. 알림은 로그인한 계정 주소로만 발송됩니다.
           </span>
         </el-form-item>
 

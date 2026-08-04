@@ -1,4 +1,6 @@
 import { Firestore } from '@google-cloud/firestore'
+import { initializeApp } from 'firebase-admin/app'
+import { getAuth } from 'firebase-admin/auth'
 import { google } from 'googleapis'
 import functions from '@google-cloud/functions-framework'
 
@@ -28,6 +30,24 @@ import { describeWeather } from './weatherText.js'
 const TIME_ZONE = process.env.TIME_ZONE ?? 'Asia/Seoul'
 
 const firestore = new Firestore()
+
+// 알림 주소는 문서가 아니라 계정에서 읽는다.
+// 플랜 목록이 로그인한 모두에게 공개라 문서에 주소를 담으면 남에게 보인다.
+initializeApp()
+
+/**
+ * 소유자 uid로 계정 이메일을 찾는다.
+ * 계정이 지워졌거나 조회에 실패하면 null을 돌려주고 그 사람만 건너뛴다.
+ */
+const emailOf = async (uid) => {
+  try {
+    const user = await getAuth().getUser(uid)
+    return user.email ?? null
+  } catch (err) {
+    console.warn(`계정 조회 실패 (${uid}): ${err.message}`)
+    return null
+  }
+}
 
 /**
  * 레이스 시작 시각의 예보를 가져온다.
@@ -146,8 +166,20 @@ export const notifyRaceWeather = async (req, res) => {
     const from = process.env.GMAIL_SENDER ?? 'me'
     const subject = buildSubject(race, weather)
 
+    // 주소를 먼저 모으고, 못 찾은 사람은 제외한다
+    const withEmail = (
+      await Promise.all(
+        recipients.map(async (r) => ({ ...r, email: await emailOf(r.ownerUid) })),
+      )
+    ).filter((r) => r.email)
+
+    if (!withEmail.length) {
+      console.log(`${race.name}: 주소를 찾은 수신자가 없습니다.`)
+      return res.status(200).json({ sent: 0, race: race.name, reason: '주소 조회 실패' })
+    }
+
     const results = await Promise.allSettled(
-      recipients.map(({ email, plan }) =>
+      withEmail.map(({ email, plan }) =>
         gmail.users.messages.send({
           userId: 'me',
           requestBody: {
@@ -162,14 +194,19 @@ export const notifyRaceWeather = async (req, res) => {
       ),
     )
 
+    const skipped = recipients.length - withEmail.length
     const sent = results.filter((r) => r.status === 'fulfilled').length
     const failed = results.length - sent
     results
       .filter((r) => r.status === 'rejected')
       .forEach((r) => console.error('발송 실패:', r.reason?.message))
 
-    console.log(`${race.name}: ${sent}건 발송, ${failed}건 실패 (${Date.now() - startedAt}ms)`)
-    return res.status(200).json({ race: race.name, sent, failed })
+    console.log(
+      `${race.name}: ${sent}건 발송, ${failed}건 실패` +
+        (skipped ? `, ${skipped}건 주소 없음` : '') +
+        ` (${Date.now() - startedAt}ms)`,
+    )
+    return res.status(200).json({ race: race.name, sent, failed, skipped })
   } catch (err) {
     console.error('알림 처리 중 오류:', err)
     return res.status(500).json({ error: err.message })

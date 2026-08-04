@@ -123,17 +123,23 @@ check('표에 없으면 대분류로', describeWeather(599) === '비', describeW
 check('범위 밖이면 API 원문', describeWeather(9999, '원문') === '원문')
 
 console.log('\n=== 발송 대상 선별 ===')
+// 주소는 문서에 없다. 소유자 uid로만 가른다.
 const plans = [
-  { email: 'me@example.com', notify: true, circuitId: 'zandvoort', people: 3, memo: '우비' },
-  { email: 'ME@example.com', notify: true, circuitId: 'zandvoort' }, // 중복(대소문자)
-  { email: 'off@example.com', notify: false, circuitId: 'zandvoort' }, // 알림 꺼짐
-  { email: 'other@example.com', notify: true, circuitId: 'monza' }, // 다른 서킷
-  { email: '', notify: true, circuitId: 'zandvoort' }, // 이메일 없음
-  { email: 'bad-email', notify: true, circuitId: 'zandvoort' }, // 형식 이상
+  { ownerUid: 'u1', nickname: '윤성', notify: true, circuitId: 'zandvoort', people: 3, memo: '우비' },
+  { ownerUid: 'u1', notify: true, circuitId: 'zandvoort' }, // 같은 사람의 두 번째 플랜
+  { ownerUid: 'u2', notify: false, circuitId: 'zandvoort' }, // 알림 꺼짐
+  { ownerUid: 'u3', notify: true, circuitId: 'monza' }, // 다른 서킷
+  { ownerUid: '', notify: true, circuitId: 'zandvoort' }, // 소유자 없음
+  { notify: true, circuitId: 'zandvoort' }, // ownerUid 자체가 없음
 ]
 const rcpts = selectRecipients(plans, race)
-check('대상 1명만 선별', rcpts.length === 1, JSON.stringify(rcpts.map((r) => r.email)))
-check('올바른 주소 선택', rcpts[0]?.email === 'me@example.com')
+check('대상 1명만 선별', rcpts.length === 1, JSON.stringify(rcpts.map((r) => r.ownerUid)))
+check('소유자 uid 반환', rcpts[0]?.ownerUid === 'u1')
+check('한 사람이 여러 플랜을 걸어도 한 번', rcpts.filter((r) => r.ownerUid === 'u1').length === 1)
+check('주소는 담기지 않음', !('email' in (rcpts[0] ?? {})))
+check('알림 꺼진 사람 제외', !rcpts.some((r) => r.ownerUid === 'u2'))
+check('다른 서킷 제외', !rcpts.some((r) => r.ownerUid === 'u3'))
+check('소유자 없으면 제외', !rcpts.some((r) => !r.ownerUid))
 check('레이스 없으면 빈 배열', selectRecipients(plans, null).length === 0)
 
 console.log('\n=== 메일 본문 ===')

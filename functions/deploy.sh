@@ -115,7 +115,8 @@ for role in \
   roles/artifactregistry.writer \
   roles/storage.objectAdmin \
   roles/logging.logWriter \
-  roles/datastore.user
+  roles/datastore.user \
+  roles/firebaseauth.viewer
 do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$RUNTIME_SA" --role="$role" \

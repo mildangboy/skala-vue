@@ -39,9 +39,26 @@ export const usePlanStore = defineStore('plan', () => {
       : 0,
   )
   const notifyCount = computed(() => plans.value.filter((p) => p.notify).length)
+  const myCount = computed(
+    () => plans.value.filter((p) => p.ownerUid && p.ownerUid === auth.user?.uid).length,
+  )
 
   // Firestore 설정이 없으면 로컬 저장만으로 동작한다 (알림 발송은 불가)
   const offline = !hasFirestoreConfig()
+
+  /** 내가 만든 플랜인지 */
+  const isMine = (plan) => Boolean(auth.user?.uid) && plan?.ownerUid === auth.user.uid
+
+  /**
+   * 저장 전에 소유자와 표시 이름을 채운다.
+   * 보안 규칙이 ownerUid를 토큰과 대조하므로 임의 값은 거부된다.
+   * 별명을 비워 두면 계정 이름으로 대신한다.
+   */
+  const withOwner = (draft) => ({
+    ...draft,
+    ownerUid: auth.user?.uid ?? '',
+    nickname: (draft.nickname ?? '').trim() || auth.user?.displayName || '익명',
+  })
 
   const loadInitial = async () => {
     if (offline) {
@@ -55,7 +72,8 @@ export const usePlanStore = defineStore('plan', () => {
     loading.value = true
     error.value = ''
     try {
-      plans.value = await fetchPlans(auth.user.uid)
+      // 로그인한 사람은 모두의 플랜을 볼 수 있다. 수정·삭제만 작성자로 제한한다.
+      plans.value = await fetchPlans()
       persist(plans.value)
     } catch (err) {
       error.value = err.message
@@ -68,13 +86,11 @@ export const usePlanStore = defineStore('plan', () => {
   const add = async (draft) => {
     saving.value = true
     error.value = ''
-    // 소유자와 이메일은 로그인 계정 기준으로 채운다.
-    // 보안 규칙이 이 두 값을 토큰과 대조하므로 임의 값은 거부된다.
-    const owned = {
-      ...draft,
-      ownerUid: auth.user?.uid ?? '',
-      email: auth.user?.email ?? draft.email,
-    }
+    // 소유자는 로그인 계정 기준으로 채운다.
+    // 보안 규칙이 이 값을 토큰과 대조하므로 임의 값은 거부된다.
+    // 알림 주소는 문서에 담지 않는다 — 목록이 공개라 남에게 보이면 안 되고,
+    // 어차피 계정 주소로만 발송되므로 함수가 계정에서 꺼내 쓴다.
+    const owned = withOwner(draft)
     const tempId = `temp-${Date.now()}`
     const optimistic = { ...owned, id: tempId, pending: true }
     plans.value = [optimistic, ...plans.value]
@@ -104,11 +120,7 @@ export const usePlanStore = defineStore('plan', () => {
   const edit = async (draft) => {
     saving.value = true
     error.value = ''
-    const owned = {
-      ...draft,
-      ownerUid: auth.user?.uid ?? '',
-      email: auth.user?.email ?? draft.email,
-    }
+    const owned = withOwner(draft)
     const before = plans.value.find((p) => p.id === draft.id)
     plans.value = plans.value.map((p) => (p.id === draft.id ? { ...owned, pending: true } : p))
     try {
@@ -154,6 +166,8 @@ export const usePlanStore = defineStore('plan', () => {
     totalPeople,
     avgExcitement,
     notifyCount,
+    myCount,
+    isMine,
     loadInitial,
     add,
     edit,

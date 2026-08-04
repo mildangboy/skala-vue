@@ -15,7 +15,7 @@ const planStore = usePlanStore()
 const f1 = useF1Store()
 const config = useConfigStore()
 const auth = useAuthStore()
-const { plans, loading, saving, error, total, totalPeople, avgExcitement, notifyCount } =
+const { plans, loading, saving, error, total, totalPeople, avgExcitement, notifyCount, myCount } =
   storeToRefs(planStore)
 const { upcomingRaces, circuitWeather } = storeToRefs(f1)
 
@@ -98,7 +98,7 @@ const confirmRemove = async (plan) => {
       :unit="config.unit"
       :saving="saving"
       :editing="editingPlan"
-      :account-email="auth.user?.email ?? ''"
+      :default-nickname="auth.user?.displayName ?? ''"
       @submit="handleSubmit"
       @cancel="editingPlan = null"
     />
@@ -106,7 +106,10 @@ const confirmRemove = async (plan) => {
     <!-- 통계 -->
     <div class="plan-stats">
       <div class="plan-stats__item">
-        <span>등록 플랜</span><strong class="mono-num">{{ total }}</strong>
+        <span>전체 플랜</span><strong class="mono-num">{{ total }}</strong>
+      </div>
+      <div class="plan-stats__item">
+        <span>내 플랜</span><strong class="mono-num">{{ myCount }}</strong>
       </div>
       <div class="plan-stats__item">
         <span>총 인원</span><strong class="mono-num">{{ totalPeople }}</strong>
@@ -132,17 +135,18 @@ const confirmRemove = async (plan) => {
           <div class="plan-item__main">
             <div class="plan-item__title">
               <strong>{{ plan.circuitName || '(서킷 미지정)' }}</strong>
+              <el-tag v-if="planStore.isMine(plan)" size="small" type="success" effect="plain">내 플랜</el-tag>
               <el-tag v-if="plan.notify" size="small" class="plan-item__tag">알림</el-tag>
               <el-tag v-if="plan.pending" size="small" type="info">저장 중…</el-tag>
             </div>
             <p class="plan-item__meta">
-              {{ plan.email }} · {{ plan.people }}명 · 기대
+              {{ plan.nickname || '익명' }} · {{ plan.people }}명 · 기대
               <span class="mono-num">{{ Number(plan.excitement).toFixed(1) }}</span
               >점
             </p>
             <p v-if="plan.memo" class="plan-item__memo">{{ plan.memo }}</p>
           </div>
-          <div class="plan-item__actions">
+          <div v-if="planStore.isMine(plan)" class="plan-item__actions">
             <el-button size="small" :icon="Edit" :disabled="plan.pending" @click="startEdit(plan)">
               수정
             </el-button>
