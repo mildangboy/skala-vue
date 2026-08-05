@@ -15,7 +15,7 @@ defineProps({
     >
       <span class="offline-banner__dot" />
       <template v-if="offline">
-        오프라인 상태입니다 — 마지막으로 저장된 날씨를 표시하고 있어요.
+        오프라인 상태입니다 — 실시간 정보가 아닌 저장된 정보입니다.
       </template>
       <template v-else>최신 데이터를 가져오지 못해 캐시된 정보를 표시합니다.</template>
     </div>
