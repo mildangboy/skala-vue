@@ -5,7 +5,7 @@ const year = new Date().getFullYear()
 <template>
   <footer class="app-footer">
     <div class="app-footer__bar" aria-hidden="true" />
-    <p class="app-footer__main">SKALA Weather · Vue 3 + Vite + Pinia + Element Plus + Chart.js</p>
+    <p class="app-footer__main">Weather F1 · Vue 3 + Vite + Pinia + Element Plus + Chart.js</p>
     <p class="app-footer__sub">
       SK㈜ AX SKALA Full-stack Engineering · Frontend Framework(Vue.js) 실습 과제 · 날씨 데이터
       OpenWeatherMap · F1 일정 Jolpica-F1

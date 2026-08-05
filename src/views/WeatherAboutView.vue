@@ -34,7 +34,7 @@ const features = [
   <div class="about">
     <section class="about__hero">
       <span class="about__badge">ABOUT</span>
-      <h1>SKALA Weather</h1>
+      <h1>Weather F1</h1>
       <p>
         SK㈜ AX SKALA <em>Full-stack Engineering · Frontend Framework(Vue.js)</em> 과정의 전 챕터
         실습 내용을 하나의 완성형 애플리케이션으로 통합한 프로젝트입니다. 정적 Mockup → Composition

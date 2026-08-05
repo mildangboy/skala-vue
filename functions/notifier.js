@@ -178,7 +178,7 @@ export const buildHtml = ({ race, weather, plan, condition }) => {
     </div>
 
     <div style="padding:14px 24px;border-top:1px solid rgba(200,204,206,.12);color:#8d9295;font-size:11px">
-      SKALA Weather · 관전 플랜에서 알림을 끄면 더 이상 발송되지 않습니다.
+      Weather F1 · 관전 플랜에서 알림을 끄면 더 이상 발송되지 않습니다.
     </div>
   </div>
 </body></html>`

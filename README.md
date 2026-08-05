@@ -1,4 +1,4 @@
-# SKALA Weather · F1 서킷 날씨 대시보드
+# Weather F1 · F1 서킷 날씨 대시보드
 
 <p align="center">
   <strong>Vue 3 + Vite + Pinia + Element Plus + Chart.js</strong><br/>

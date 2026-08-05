@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 
-const BASE_TITLE = 'SKALA Weather'
+const BASE_TITLE = 'Weather F1'
 
 // 모든 라우트를 지연 로딩(lazy load)하여 초기 번들 크기를 최소화
 const routes = [
