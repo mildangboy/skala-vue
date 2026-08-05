@@ -135,7 +135,9 @@ const confirmRemove = async (plan) => {
           <div class="plan-item__main">
             <div class="plan-item__title">
               <strong>{{ plan.circuitName || '(서킷 미지정)' }}</strong>
-              <el-tag v-if="planStore.isMine(plan)" size="small" type="success" effect="plain">내 플랜</el-tag>
+              <el-tag v-if="planStore.isMine(plan)" size="small" type="success" effect="plain"
+                >내 플랜</el-tag
+              >
               <el-tag v-if="plan.notify" size="small" class="plan-item__tag">알림</el-tag>
               <el-tag v-if="plan.pending" size="small" type="info">저장 중…</el-tag>
             </div>

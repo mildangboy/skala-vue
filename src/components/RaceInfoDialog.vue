@@ -2,7 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import { fetchCircuitHistory } from '@/api/f1'
 import { lengthOf, shapeOf } from '@/data/circuitShapes'
+import { timezoneOf } from '@/data/circuitTimezones'
+import { utcOffsetLabel } from '@/utils/format'
 import CircuitOutline from './CircuitOutline.vue'
+import LocalTime from './LocalTime.vue'
 
 /**
  * 그랑프리 세부 정보.
@@ -59,16 +62,8 @@ const startOf = (date, time) => {
   return Number.isNaN(at.getTime()) ? null : at
 }
 
-const fmtDateTime = (at) => {
-  if (!at) return ''
-  return at.toLocaleString('ko-KR', {
-    month: 'numeric',
-    day: 'numeric',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
+/** 서킷 현지 타임존. 표에 없는 서킷이면 빈 값이고, 그때는 내 시간만 나온다. */
+const circuitTz = computed(() => timezoneOf(props.race?.circuitId) ?? '')
 
 /**
  * 주말 세션을 시각 순으로 늘어놓는다.
@@ -89,7 +84,24 @@ const sessions = computed(() => {
   const raceAt = startOf(props.race?.date, props.race?.time)
   if (raceAt) rows.push({ key: 'race', label: '결승', at: raceAt, main: true })
 
-  return rows.sort((a, b) => a.at - b.at).map((r) => ({ ...r, when: fmtDateTime(r.at) }))
+  return rows.sort((a, b) => a.at - b.at)
+})
+
+/**
+ * 소제목 옆에 붙는 타임존 표기.
+ *
+ * 예전에는 'UTC +9'가 글자 그대로 박혀 있었다. 만든 사람이 한국에 있어서
+ * 맞아 보였을 뿐, 다른 표준시에서 열면 틀린 값을 자신 있게 보여주는 셈이었다.
+ * 지금은 그 주말 날짜를 기준으로 두 타임존을 실제로 계산해 적는다.
+ * 날짜를 기준 삼는 이유는 서머타임 때문이다 — 같은 서킷도 3월과 7월의
+ * 오프셋이 다르다.
+ */
+const zoneNote = computed(() => {
+  const at = sessions.value[0]?.at
+  if (!at) return ''
+  const mine = utcOffsetLabel(at, '')
+  const there = circuitTz.value ? utcOffsetLabel(at, circuitTz.value) : ''
+  return there && there !== mine ? `현지 ${there} · 내 시간 ${mine}` : mine
 })
 
 /**
@@ -122,7 +134,9 @@ const lapMs = (t) => {
 const bestLap = computed(() => {
   const laps = history.value.filter((h) => h.fastestLap?.time)
   if (!laps.length) return null
-  return laps.reduce((best, h) => (lapMs(h.fastestLap.time) < lapMs(best.fastestLap.time) ? h : best))
+  return laps.reduce((best, h) =>
+    lapMs(h.fastestLap.time) < lapMs(best.fastestLap.time) ? h : best,
+  )
 })
 
 /**
@@ -185,11 +199,19 @@ const bestSpeedKph = computed(() => {
 
       <!-- 주말 일정 -->
       <section>
-        <h3 class="race-info__heading">주말 일정 <span>UTC +9</span></h3>
+        <h3 class="race-info__heading">
+          주말 일정 <span>{{ zoneNote }}</span>
+        </h3>
         <ul class="race-info__sessions">
           <li v-for="s in sessions" :key="s.key" :class="{ 'is-main': s.main }">
             <span>{{ s.label }}</span>
-            <span class="mono-num">{{ s.when }}</span>
+            <LocalTime
+              class="race-info__when"
+              :at="s.at"
+              :time-zone="circuitTz"
+              preset="datetime"
+              stack
+            />
           </li>
         </ul>
         <p v-if="!hasSessionTimes" class="race-info__note">
@@ -320,6 +342,11 @@ const bestSpeedKph = computed(() => {
 .race-info__sessions li.is-main {
   color: var(--text-primary);
   font-weight: 700;
+}
+/* 시각은 오른쪽 끝에 맞춰야 세로로 자릿수가 정렬돼 훑어보기 쉽다 */
+.race-info__when {
+  align-items: flex-end;
+  text-align: right;
 }
 
 /* ── 역대 우승자 ── */

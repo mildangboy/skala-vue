@@ -6,6 +6,7 @@ import { fetchCurrentWeatherByCoords, fetchForecastByCoords } from '@/api/weathe
 import { formatTemp, formatHour, formatWeekday, formatDate } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { raceStartDate } from '@/data/f1Calendar2026'
+import { timezoneOf } from '@/data/circuitTimezones'
 import { useConfigStore } from '@/stores/configStore'
 import { useF1Store } from '@/stores/f1Store'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
@@ -16,6 +17,7 @@ import TempChart from '@/components/TempChart.vue'
 import RaceConditionPanel from '@/components/RaceConditionPanel.vue'
 import RaceWindowForecast from '@/components/RaceWindowForecast.vue'
 import RaceInfoDialog from '@/components/RaceInfoDialog.vue'
+import LocalTime from '@/components/LocalTime.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -41,18 +43,8 @@ const startAt = computed(() => (race.value ? raceStartDate(race.value) : null))
 // 이미 열린 경기는 '경기 시간대 예보'를 보여줄 이유가 없다
 const isPast = computed(() => Boolean(startAt.value) && startAt.value.getTime() < Date.now())
 
-const raceTimeLabel = computed(() =>
-  race.value
-    ? raceStartDate(race.value).toLocaleString('ko-KR', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        weekday: 'long',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '',
-)
+/** 서킷 현지 타임존. 표에 없는 서킷이면 빈 값이고, 그때는 내 시간만 나온다. */
+const circuitTz = computed(() => timezoneOf(race.value?.circuitId) ?? '')
 
 // 선택한 구간만큼 잘라서 차트에 전달
 // 시간별 스트립 — 날짜가 바뀌는 첫 항목에 날짜 라벨을 붙인다
@@ -144,7 +136,8 @@ watch([() => route.params.circuitId, () => config.unit], load)
           <h1>{{ race.name }}</h1>
           <p class="circuit-hero__circuit">{{ race.circuit }} · {{ race.locality }}</p>
           <p class="circuit-hero__time">
-            <el-icon><Watch /></el-icon>{{ raceTimeLabel }}
+            <el-icon><Watch /></el-icon>
+            <LocalTime :at="startAt" :time-zone="circuitTz" preset="full" />
           </p>
           <el-button
             class="circuit-hero__info"
@@ -214,7 +207,7 @@ watch([() => route.params.circuitId, () => config.unit], load)
         <BaseDashboardCard v-if="hourlyItems.length">
           <template #header>
             <span>시간별 예보</span>
-            <span class="hourly__hint">3시간 간격 · 좌우로 스크롤</span>
+            <span class="hourly__hint">서킷 현지 시각 · 3시간 간격 · 좌우로 스크롤</span>
           </template>
           <div class="hourly">
             <div

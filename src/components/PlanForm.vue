@@ -138,7 +138,11 @@ defineExpose({ reset })
         </el-form-item>
 
         <el-form-item prop="nickname" label="표시할 별명">
-          <el-input v-model.trim="form.nickname" maxlength="20" placeholder="다른 사람에게 보일 이름" />
+          <el-input
+            v-model.trim="form.nickname"
+            maxlength="20"
+            placeholder="다른 사람에게 보일 이름"
+          />
           <span class="plan-form__hint">
             목록에 이 이름으로 표시됩니다. 알림은 로그인한 계정 주소로만 발송됩니다.
           </span>

@@ -6,8 +6,10 @@ import { formatTemp } from '@/utils/format'
 import { iconEmoji } from '@/utils/weatherIcons'
 import { raceStartDate } from '@/data/f1Calendar2026'
 import { shapeOf } from '@/data/circuitShapes'
+import { timezoneOf } from '@/data/circuitTimezones'
 import CircuitOutline from './CircuitOutline.vue'
 import RaceInfoDialog from './RaceInfoDialog.vue'
+import LocalTime from './LocalTime.vue'
 
 const props = defineProps({
   race: { type: Object, default: null },
@@ -23,16 +25,10 @@ const infoOpen = ref(false)
 // 도형이 없는 서킷(아직 OSM에 없는 신설 트랙)에서는 라벨까지 통째로 감춘다
 const hasLayout = computed(() => Boolean(shapeOf(props.race?.circuitId)))
 
-const raceLocalTime = computed(() => {
-  if (!props.race) return ''
-  return raceStartDate(props.race).toLocaleString('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-})
+const raceStart = computed(() => (props.race ? raceStartDate(props.race) : null))
+
+/** 서킷 현지 타임존. 표에 없는 서킷이면 빈 값이고, 그때는 내 시간만 나온다. */
+const circuitTz = computed(() => timezoneOf(props.race?.circuitId) ?? '')
 
 const pad = (n) => String(n ?? 0).padStart(2, '0')
 
@@ -119,7 +115,9 @@ const goDetail = () => {
           </div>
         </div>
         <div v-else class="race-hero__live">LIGHTS OUT 🏁</div>
-        <p class="race-hero__time">{{ raceLocalTime }} (내 시간대)</p>
+        <p class="race-hero__time">
+          <LocalTime :at="raceStart" :time-zone="circuitTz" preset="datetime" />
+        </p>
       </div>
     </footer>
     <RaceInfoDialog v-model="infoOpen" :race="race" />

@@ -32,8 +32,7 @@ export const TEAM_COLORS = {
 }
 
 /** 팀 색. 모르는 팀이면 테마 강조색으로 넘긴다. */
-export const colorOf = (constructorId) =>
-  TEAM_COLORS[constructorId] ?? 'var(--accent, #00d2be)'
+export const colorOf = (constructorId) => TEAM_COLORS[constructorId] ?? 'var(--accent, #00d2be)'
 
 /**
  * 한 팀에 드라이버가 둘이라 색만으로는 팀메이트를 못 가른다.

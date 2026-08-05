@@ -25,7 +25,12 @@ const { user, isSignedIn, ready, configured } = storeToRefs(auth)
 
   <!-- 로그인 후: 계정 요약 -->
   <div v-else-if="isSignedIn" class="account liquid-glass">
-    <img v-if="user.photoURL" :src="user.photoURL" :alt="user.displayName" class="account__avatar" />
+    <img
+      v-if="user.photoURL"
+      :src="user.photoURL"
+      :alt="user.displayName"
+      class="account__avatar"
+    />
     <div class="account__meta">
       <strong>{{ user.displayName }}</strong>
       <span>{{ user.email }}</span>

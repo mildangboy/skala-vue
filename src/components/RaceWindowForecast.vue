@@ -1,13 +1,11 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useConfigStore } from '@/stores/configStore'
-import {
-  FORECAST_DAYS,
-  describeWmo,
-  fetchRaceWindow,
-  summarize,
-} from '@/api/raceWeather'
+import { FORECAST_DAYS, describeWmo, fetchRaceWindow, summarize } from '@/api/raceWeather'
+import { timezoneOf } from '@/data/circuitTimezones'
+import { utcOffsetLabel, zoneOffsetMinutes } from '@/utils/format'
 import BaseDashboardCard from './BaseDashboardCard.vue'
+import LocalTime from './LocalTime.vue'
 
 /**
  * 경기 시작 전후 시간대의 날씨.
@@ -52,19 +50,44 @@ const load = async () => {
   }
 }
 
-watch(
-  () => [props.race?.circuitId, props.startAt?.getTime(), config.unit],
-  load,
-  { immediate: true },
-)
+watch(() => [props.race?.circuitId, props.startAt?.getTime(), config.unit], load, {
+  immediate: true,
+})
 
 const summary = computed(() => summarize(hours.value))
 
 /** 강수확률 막대의 높이(%) — 0%도 아주 얕게 남겨 칸이 비지 않게 한다 */
 const popHeight = (pop) => `${Math.max(pop ?? 0, 2)}%`
 
-const timeLabel = (at) =>
-  at.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+/** 서킷 현지 타임존. 표에 없으면 빈 값이고 내 시간만 나온다. */
+const circuitTz = computed(() => timezoneOf(props.race?.circuitId) ?? '')
+
+/**
+ * 현지와 내 표준시가 실제로 다른지.
+ *
+ * 스즈카를 한국에서 볼 때처럼 시차가 없으면 같은 숫자를 두 번 쓰는 게 되므로
+ * 두 줄로 늘리지 않는다. 오프셋은 날짜마다 달라질 수 있어(서머타임) 경기
+ * 시각을 기준으로 잰다.
+ */
+const dual = computed(() => {
+  const at = props.startAt
+  if (!circuitTz.value || !at || Number.isNaN(at.getTime())) return false
+  const there = zoneOffsetMinutes(at, circuitTz.value)
+  return there !== null && there !== zoneOffsetMinutes(at, '')
+})
+
+/**
+ * 칸마다 '현지'/'내 시간'을 되풀이하면 다섯 칸이 꼬리표로 덮인다.
+ * 그래서 칸에는 숫자만 두고, 무엇이 무엇인지는 목록 위에 한 번만 적는다.
+ */
+const legend = computed(() => {
+  const at = props.startAt
+  if (!dual.value || !at) return null
+  return {
+    there: utcOffsetLabel(at, circuitTz.value),
+    mine: utcOffsetLabel(at, ''),
+  }
+})
 
 const tempUnit = computed(() => (config.unit === 'metric' ? '°C' : '°F'))
 const windUnit = computed(() => (config.unit === 'metric' ? 'km/h' : 'mph'))
@@ -94,8 +117,8 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
     <p v-else-if="state === 'out-of-range'" class="rw__pending">
       경기까지 <strong>{{ Math.ceil(daysAway) }}일</strong> 남았습니다. 예보는 경기
       {{ FORECAST_DAYS }}일 전부터 나오므로,
-      <strong>{{ waitDays > 0 ? `${waitDays}일 뒤` : '곧' }}</strong> 이 자리에
-      시간대별 날씨가 채워집니다.
+      <strong>{{ waitDays > 0 ? `${waitDays}일 뒤` : '곧' }}</strong> 이 자리에 시간대별 날씨가
+      채워집니다.
     </p>
 
     <template v-else-if="state === 'ok'">
@@ -108,9 +131,21 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
         </span>
       </p>
 
+      <p v-if="legend" class="rw__legend">
+        <span><strong>위</strong> 서킷 현지 시각 · {{ legend.there }}</span>
+        <span><strong>아래</strong> 내 시간 · {{ legend.mine }}</span>
+      </p>
+
       <ul class="rw__hours">
         <li v-for="h in hours" :key="h.offset" :class="{ 'is-start': h.offset === 0 }">
-          <span class="rw__time mono-num">{{ timeLabel(h.at) }}</span>
+          <LocalTime
+            class="rw__time"
+            :at="h.at"
+            :time-zone="circuitTz"
+            preset="time"
+            stack
+            :labels="false"
+          />
           <span class="rw__tag">{{
             h.offset === 0 ? '스타트' : h.offset < 0 ? `${h.offset}h` : `+${h.offset}h`
           }}</span>
@@ -130,8 +165,11 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
       </ul>
 
       <p class="rw__note">
-        시각은 서킷 현지 기준이 아니라 브라우저 표준시로 표시됩니다. 결승은 보통 2시간
-        안에 끝나지만, 중단이 있으면 최장 3시간까지 이어집니다.
+        <template v-if="legend"
+          >시각은 서킷 현지 기준으로 먼저 적고, 내 표준시를 아래에 함께 적습니다.</template
+        >
+        <template v-else>이 서킷은 내 표준시와 시차가 없습니다.</template>
+        결승은 보통 2시간 안에 끝나지만, 중단이 있으면 최장 3시간까지 이어집니다.
       </p>
     </template>
   </BaseDashboardCard>
@@ -188,6 +226,20 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
   border-left-color: #f56c6c;
 }
 
+/* 두 시각이 각각 무엇인지 한 번만 밝히는 줄 */
+.rw__legend {
+  margin: 0 0 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.rw__legend strong {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
 /* 시간대 */
 .rw__hours {
   margin: 0;
@@ -216,6 +268,8 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
   font-size: 12px;
   font-weight: 700;
   color: var(--text-primary);
+  align-items: center;
+  line-height: 1.35;
 }
 .rw__tag {
   font-size: 10px;

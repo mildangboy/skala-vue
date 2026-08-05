@@ -156,7 +156,8 @@ export const summarize = (hours = []) => {
   const wet = scope.some((h) => isWet(h.code))
 
   let verdict
-  if (maxPop >= 70 || totalMm >= 2) verdict = { level: 'high', text: '우천 레이스 가능성이 높습니다' }
+  if (maxPop >= 70 || totalMm >= 2)
+    verdict = { level: 'high', text: '우천 레이스 가능성이 높습니다' }
   else if (maxPop >= 40 || wet) verdict = { level: 'mid', text: '비가 올 수도 있습니다' }
   else if (maxPop >= 15) verdict = { level: 'low', text: '비 가능성은 낮습니다' }
   else verdict = { level: 'dry', text: '드라이 레이스가 예상됩니다' }

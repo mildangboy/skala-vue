@@ -122,3 +122,78 @@ export const dailyRangeOf = (forecast, index = 0) => {
   if (!day || !Number.isFinite(day.min) || !Number.isFinite(day.max)) return null
   return { min: day.min, max: day.max }
 }
+
+/* ── 서킷 현지 시각 ─────────────────────────────────────────────
+   위쪽 formatDate 계열은 OpenWeather가 주는 '오프셋 초'를 다룬다. 아래는
+   IANA 타임존 '이름'을 다룬다. 둘을 나눠 둔 이유는 다루는 값이 달라서다 —
+   오프셋은 그 순간에만 참이고, 이름은 어떤 날짜든 서머타임까지 계산해 준다.
+   왜 이름이 필요한지는 data/circuitTimezones.js 머리말에 적어뒀다.
+
+   timeZone 자리에 빈 값을 넘기면 전부 '보는 사람의 표준시' 기준으로 동작한다.
+   그래서 호출부는 현지/내 시간을 같은 함수로 다룰 수 있다.               */
+
+/**
+ * 그 시각에 그 타임존이 갖는 UTC 오프셋(분).
+ *
+ * timeZoneName: 'shortOffset'으로 'GMT+2' 문자열을 받아 파싱하는 방법도 있지만,
+ * 그 표기는 로케일마다 달라서 문자열을 다시 뜯어야 한다. 대신 그 타임존의
+ * 벽시계 값을 읽어 UTC로 되짚는다. 로케일에 기대지 않아 어디서든 같은 값이 나온다.
+ */
+export const zoneOffsetMinutes = (date, timeZone) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null
+  if (!timeZone) return -date.getTimezoneOffset()
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).formatToParts(date)
+    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]))
+    const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second)
+    return Math.round((asUtc - date.getTime()) / 60000)
+  } catch {
+    // 모르는 타임존 이름 — 판정하지 않고 물러난다
+    return null
+  }
+}
+
+/** 'UTC+9' / 'UTC-4' / 'UTC+5:30'. 분 단위 오프셋을 쓰는 지역이 있어 분도 살린다. */
+export const utcOffsetLabel = (date, timeZone) => {
+  const min = zoneOffsetMinutes(date, timeZone)
+  if (min === null) return ''
+  const abs = Math.abs(min)
+  const mm = abs % 60
+  return `UTC${min < 0 ? '-' : '+'}${Math.floor(abs / 60)}${mm ? `:${String(mm).padStart(2, '0')}` : ''}`
+}
+
+/** 지정한 타임존 기준으로 시각을 찍는다. timeZone이 비면 보는 사람 표준시. */
+export const formatInZone = (date, timeZone, options = {}) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return ''
+  try {
+    return new Intl.DateTimeFormat('ko-KR', {
+      ...(timeZone ? { timeZone } : {}),
+      ...options,
+    }).format(date)
+  } catch {
+    // 타임존 이름이 잘못됐어도 시각 자체는 보여준다
+    return new Intl.DateTimeFormat('ko-KR', options).format(date)
+  }
+}
+
+/**
+ * 그 순간이 서킷 현지와 보는 사람에게 '같은 날짜'인지.
+ *
+ * 시차가 크면 날짜가 갈린다. 라스베이거스 GP가 그렇다 — 현지로는 토요일 밤인데
+ * 한국에서는 일요일 낮이다. 시각만 병기하면 요일이 어긋난 채로 읽히므로,
+ * 날짜가 다를 때는 내 시간 쪽에도 날짜를 함께 찍어야 한다.
+ */
+export const isSameZoneDay = (date, timeZone) => {
+  if (!timeZone) return true
+  const opts = { year: 'numeric', month: '2-digit', day: '2-digit' }
+  return formatInZone(date, timeZone, opts) === formatInZone(date, '', opts)
+}
