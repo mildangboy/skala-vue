@@ -11,7 +11,9 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
+    "format:check": "prettier --check --experimental-cli src/",
     "deploy": "bash scripts/deploy.sh",
+    "test:shared": "node scripts/check-shared.mjs",
     "test:smoke": "vite build --config vite.smoke.config.js --logLevel error && node --import ./tests/browser-shim.mjs smoke-dist/ssr-smoke.js",
     "build:standalone": "vite build --config vite.standalone.config.js"
   },

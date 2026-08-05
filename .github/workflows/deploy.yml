@@ -41,6 +41,18 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # 서식은 eslint가 보지 않는다. eslint-config-prettier가 서식 규칙을 일부러
+      # 꺼두기 때문이다(둘이 싸우지 않게 하려는 표준 구성). 그 결과 아무도
+      # 서식을 검사하지 않아 조용히 어긋나 있었다. 여기서 본다.
+      - name: Format check
+        run: npm run format:check
+
+      # functions/는 별도 배포라 src/를 import할 수 없어 두 파일을 복사해 쓴다.
+      # 한쪽만 고쳐도 빌드와 테스트는 통과하고 알림 메일만 옛 데이터로 나간다.
+      # 어긋난 순간에 잡는다.
+      - name: Shared copy drift check
+        run: npm run test:shared
+
       - name: SSR smoke test
         run: npm run test:smoke
 

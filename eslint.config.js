@@ -21,10 +21,16 @@ export default defineConfig([
     },
   },
 
-  // 테스트·설정 스크립트와 Cloud Function은 Node 환경에서 실행된다
+  // 테스트·설정 스크립트와 Cloud Function은 Node 환경에서 실행된다.
+  // scripts/도 여기에 든다 — 브라우저가 아니라 CI와 개발자 터미널에서 돈다.
   {
     name: 'app/node-scripts',
-    files: ['tests/**/*.mjs', 'functions/**/*.{js,mjs}', '*.config.js'],
+    files: [
+      'tests/**/*.mjs',
+      'scripts/**/*.{js,mjs}',
+      'functions/**/*.{js,mjs}',
+      '*.config.js',
+    ],
     languageOptions: {
       globals: {
         ...globals.node,
