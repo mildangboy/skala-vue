@@ -18,7 +18,7 @@ useThemeStore()
     <main class="app-main">
       <RouterView v-slot="{ Component, route }">
         <Transition name="page" mode="out-in">
-          <component :is="Component" :key="route.fullPath" />
+          <component :is="Component" :key="route.path" />
         </Transition>
       </RouterView>
     </main>
