@@ -20,7 +20,7 @@ a {
 /* 다이얼로그·서랍도 같은 유리 재질로 통일 */
 .el-dialog,
 .el-drawer {
-  background: var(--surface-strong);
+  background: var(--surface-dialog);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   border: 1px solid var(--surface-border);
@@ -30,20 +30,20 @@ a {
   border-radius: var(--radius-card);
 }
 .el-overlay {
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 /* 메시지 박스와 토스트도 동일 재질 */
 .el-message-box,
 .el-message {
-  background: var(--surface-strong);
+  background: var(--surface-dialog);
   backdrop-filter: var(--blur-glass);
   -webkit-backdrop-filter: var(--blur-glass);
   border: 1px solid var(--surface-border);
   box-shadow: var(--surface-shadow), var(--glass-specular);
 }
 
-/* 모바일 메뉴 서랍 — 테마 배경/여백 맞춤 */
+/* 모바일 메뉴 서랍 테마 맞춤 */
 .el-drawer {
   background: var(--bg-base);
   background-image: var(--bg-gradient);
@@ -57,10 +57,8 @@ html.dark .el-empty__description p {
   color: var(--text-muted);
 }
 
-/* ── 데이터 테이블 — AMG 블랙 + 페트로나스 틸 ────────────────────
-   Element Plus 기본 테이블은 밝은 회색 계열 변수를 쓰기 때문에
-   다크 배경에서 줄무늬 행의 글자가 묻혀 보이지 않는다.
-   테마 토큰으로 전부 재정의한다. */
+/* 데이터 테이블. Element Plus 기본이 밝은 회색 계열이라
+   다크 배경에서 줄무늬 행 글자가 안 보임 -> 테마 토큰으로 재정의 */
 .el-table {
   --el-table-border-color: var(--table-border);
   --el-table-border: 1px solid var(--table-border);
@@ -92,7 +90,7 @@ html.dark .el-empty__description p {
   color: var(--text-primary);
 }
 
-/* 줄무늬 행 — 밝은 회색 대신 틸이 아주 옅게 깔린 검정 */
+/* 줄무늬 행. 밝은 회색 대신 옅은 틸 */
 .el-table .el-table__row--striped td.el-table__cell {
   background-color: var(--table-row-striped);
   color: var(--text-primary);
@@ -113,7 +111,7 @@ html.dark .el-empty__description p {
   color: inherit;
 }
 
-/* 정렬 화살표 — 비활성은 흐리게, 활성은 팀 컬러 */
+/* 정렬 화살표: 비활성 흐리게, 활성은 팀 컬러 */
 .el-table .caret-wrapper .sort-caret.ascending {
   border-bottom-color: var(--text-muted);
 }
@@ -132,10 +130,8 @@ html.dark .el-empty__description p {
   background-color: var(--table-border);
 }
 
-/* ── 채워진 primary 버튼 대비 보정 ─────────────────────────────
-   Element Plus 기본값은 배경 위 흰 글자인데, 브랜드 틸 위에서는
-   대비가 부족하다(다크 1.40:1 / 라이트 3.07:1). 테마별로 배경과
-   글자색을 함께 지정해 두 모드 모두 WCAG AA(4.5:1)를 만족시킨다. */
+/* primary 버튼 대비 보정. 틸 배경 + 흰 글자는 대비 미달이라
+   (다크 1.40:1 / 라이트 3.07:1) WCAG AA 맞춰 재지정 */
 .el-button.el-button--primary {
   --el-button-bg-color: var(--on-accent-bg);
   --el-button-border-color: var(--on-accent-bg);
@@ -149,12 +145,12 @@ html.dark .el-empty__description p {
   font-weight: 600;
 }
 
-/* 아이콘도 동일한 글자색을 따르도록 */
+/* 아이콘도 같은 글자색 */
 .el-button.el-button--primary .el-icon {
   color: currentColor;
 }
 
-/* primary 버튼 호버 — 살짝 떠오르며 팀 컬러 글로우 */
+/* primary 버튼 호버: 살짝 떠오름 + 글로우 */
 .el-button.el-button--primary {
   transition:
     background-color 0.2s ease,
@@ -175,20 +171,14 @@ html.dark .el-empty__description p {
   outline-offset: 3px;
 }
 
-/* text 버튼(시즌 캘린더 등)도 호버 시 반응하도록 */
+/* text 버튼 호버 반응 */
 .el-button.is-text:hover {
   background: var(--accent-soft);
   color: var(--accent);
 }
 
-/* ══════════════════════════════════════════════════════════════
-   Liquid Glass 재질
-   유리 한 장은 세 겹으로 만든다.
-     1) 반투명 배경 + backdrop blur  — 뒤가 비쳐 보이는 몸통
-     2) ::before 시트 그라디언트      — 위에서 들어오는 빛
-     3) inset 그림자(스페큘러)        — 가장자리에 맺히는 반사광
-   Chromium에서는 여기에 SVG 굴절이 얹혀 배경이 테두리에서 휜다.
-   ══════════════════════════════════════════════════════════════ */
+/* Liquid Glass 재질: 반투명 배경 + blur, ::before 그라디언트, inset 반사광 3겹.
+   Chromium은 여기에 SVG 굴절 추가 */
 .liquid-glass {
   position: relative;
   isolation: isolate;
@@ -200,7 +190,7 @@ html.dark .el-empty__description p {
   -webkit-backdrop-filter: var(--blur-glass);
 }
 
-/* 빛이 스치는 면 — 위쪽이 밝고 아래로 갈수록 사라진다 */
+/* 상단 광 시트 */
 .liquid-glass::before {
   content: '';
   position: absolute;
@@ -211,12 +201,12 @@ html.dark .el-empty__description p {
   z-index: -1;
 }
 
-/* 굴절을 지원하는 브라우저에서만 SVG 필터를 배경에 얹는다 */
+/* 굴절 지원 브라우저만 SVG 필터 적용 */
 html.glass-refraction .liquid-glass {
   backdrop-filter: url(#glass-refract) var(--blur-glass);
 }
 
-/* 상호작용 요소는 반사광을 조금 더 세게 줘 만질 수 있다는 인상을 준다 */
+/* 클릭 가능한 요소는 반사광 강화 */
 .liquid-glass--interactive {
   transition:
     transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
@@ -235,7 +225,7 @@ html.glass-refraction .liquid-glass {
   transform: translateY(-1px);
 }
 
-/* 배경 자체가 유리 뒤에서 은은하게 흐르도록 — 재질감의 바탕이 된다 */
+/* 유리 뒤 배경 애니메이션 */
 @media (prefers-reduced-motion: no-preference) {
   body::before {
     content: '';

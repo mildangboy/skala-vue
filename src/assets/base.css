@@ -1,7 +1,5 @@
-/**
- * 디자인 시스템 — Mercedes-AMG PETRONAS F1 팀 컬러 × Apple Weather 레이아웃 언어
- * 팀 컬러: Petronas Teal(#27F4D2), Deep Black(#0A0A0A), Silver(#C8CCCE)
- */
+/* 디자인 토큰. Mercedes-AMG PETRONAS 팀 컬러 기반
+   Petronas Teal #27F4D2 / Deep Black #0A0A0A / Silver #C8CCCE */
 
 :root {
   /* ── 브랜드 팔레트 (Mercedes-AMG PETRONAS) ───────────────────── */
@@ -21,26 +19,25 @@
     radial-gradient(900px 500px at 88% 8%, rgba(0, 166, 143, 0.14), transparent 55%),
     linear-gradient(180deg, #eef1f2 0%, #f6f8f8 55%, #ffffff 100%);
 
-  /* ── Liquid Glass 재질 (라이트) ─────────────────────────────
-     유리는 '반투명 배경 + 가장자리 스페큘러 + 깊이 그림자' 세 겹으로 만든다.
-     surface는 배경, specular는 빛이 스치는 테두리, shadow는 떠 있는 느낌. */
+  /* Liquid Glass 재질 (라이트): surface 배경 + specular 반사광 + shadow 세 겹 */
   --surface: rgba(255, 255, 255, 0.55);
   --surface-strong: rgba(255, 255, 255, 0.82);
-  /* 아래가 비치면 안 되는 곳(예: 구글 버튼을 덮는 면)에 쓰는 불투명 색 */
+  --surface-dialog: rgba(255, 255, 255, 0.97);
+  /* 아래가 비치면 안 되는 곳용 불투명 색 (구글 버튼 덮는 면 등) */
   --surface-solid: #ffffff;
   --surface-border: rgba(10, 10, 10, 0.06);
   --surface-shadow:
     0 1px 1px rgba(10, 20, 24, 0.04), 0 8px 24px rgba(10, 20, 24, 0.08),
     0 24px 48px rgba(10, 20, 24, 0.06);
 
-  /* 유리 위쪽에서 빛이 들어오는 것처럼 상단은 밝고 하단은 어둡게 */
+  /* 상단 밝고 하단 어두운 광원 효과 */
   --glass-sheen: linear-gradient(
     160deg,
     rgba(255, 255, 255, 0.65) 0%,
     rgba(255, 255, 255, 0.12) 32%,
     rgba(255, 255, 255, 0) 60%
   );
-  /* 테두리 안쪽에 얇게 얹히는 반사광 (Liquid Glass의 핵심 단서) */
+  /* 테두리 안쪽 반사광 */
   --glass-specular:
     inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 1px rgba(255, 255, 255, 0.35),
     inset 0 -1px 0 rgba(10, 20, 24, 0.05);
@@ -55,8 +52,8 @@
   --accent: var(--amg-teal-deep);
   --accent-soft: rgba(0, 166, 143, 0.12);
 
-  /* 채워진 버튼/뱃지 전용 — 텍스트 대비 4.5:1(WCAG AA)을 만족하도록 별도 지정.
-     --accent를 그대로 배경에 쓰면 흰 글자와 대비가 3.07:1로 부족하다. */
+  /* 채워진 버튼/뱃지 전용. --accent 그대로면 흰 글자 대비 3.07:1로
+     WCAG AA(4.5:1) 미달이라 별도 지정 */
   --on-accent-bg: #00806f;
   --on-accent-bg-hover: #00705f;
   --on-accent-bg-active: #006658;
@@ -82,9 +79,9 @@
 
   --radius-card: 22px;
   --radius-pill: 999px;
-  /* 굴절이 지원되지 않는 브라우저의 기본 블러 */
+  /* 굴절 미지원 브라우저 기본 블러 */
   --blur-glass: saturate(180%) blur(20px);
-  /* Chromium에서 SVG 굴절 필터가 얹히는 자리 (main.css에서 교체) */
+  /* Chromium용 SVG 굴절 필터 자리 (main.css에서 교체) */
   --glass-backdrop: var(--blur-glass);
 }
 
@@ -96,10 +93,10 @@ html.dark {
     radial-gradient(900px 520px at 90% 4%, rgba(0, 166, 143, 0.12), transparent 55%),
     linear-gradient(180deg, #0a0d0f 0%, #06080a 55%, #030405 100%);
 
-  /* ── Liquid Glass 재질 (다크) ───────────────────────────────
-     어두운 유리는 배경을 더 많이 비추되, 상단 반사광을 남겨 두께를 표현한다. */
+  /* Liquid Glass 재질 (다크) */
   --surface: rgba(28, 33, 36, 0.5);
   --surface-strong: rgba(34, 39, 42, 0.78);
+  --surface-dialog: rgba(34, 39, 42, 0.97);
   --surface-solid: #22272a;
   --surface-border: rgba(200, 204, 206, 0.1);
   --surface-shadow:
@@ -125,7 +122,7 @@ html.dark {
   --accent: var(--amg-teal);
   --accent-soft: rgba(39, 244, 210, 0.14);
 
-  /* 다크모드에서는 밝은 틸이 배경이므로 글자를 어둡게 (흰 글자는 1.40:1로 판독 불가) */
+  /* 다크모드는 밝은 틸 배경이라 글자를 어둡게 (흰 글자면 대비 1.40:1) */
   --on-accent-bg: var(--amg-teal);
   --on-accent-bg-hover: #4ff6da;
   --on-accent-bg-active: #14d9b8;
@@ -137,7 +134,7 @@ html.dark {
   --skeleton-base: rgba(255, 255, 255, 0.07);
   --skeleton-shine: rgba(255, 255, 255, 0.14);
 
-  /* 데이터 테이블 — AMG 블랙 바탕에 페트로나스 틸 악센트 */
+  /* 데이터 테이블 (다크) */
   --table-header-bg: rgba(39, 244, 210, 0.07);
   --table-header-text: var(--amg-teal);
   --table-header-border: rgba(39, 244, 210, 0.34);
@@ -181,7 +178,7 @@ body {
     color 0.4s ease;
 }
 
-/* Apple Weather 특유의 얇고 큰 숫자 표현 */
+/* 얇고 큰 숫자 표시용 (Apple Weather 느낌) */
 .temp-display {
   font-weight: 200;
   letter-spacing: -0.04em;
