@@ -5,7 +5,7 @@
   Apple 날씨 앱의 레이아웃 언어 × Mercedes-AMG PETRONAS F1 팀 컬러
 </p>
 
-SK㈜ AX SKALA _Full-stack Engineering · Frontend Framework(Vue.js)_ 과정의 전 챕터 실습을
+SK㈜ AX SKALA Vue.js 과정의 전 챕터 실습을
 하나의 완성형 애플리케이션으로 통합하고, F1 2026 시즌 연동·데이터 시각화·오프라인 대응 등
 자기주도 확장 기능을 더한 프로젝트입니다.
 
