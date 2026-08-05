@@ -4,12 +4,14 @@ import { renderToString } from 'vue/server-renderer'
 import { createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import App from '@/App.vue'
+import { routes } from '@/router/routes'
 import WeatherHomeView from '@/views/WeatherHomeView.vue'
 import F1CalendarView from '@/views/F1CalendarView.vue'
 import CircuitDetailView from '@/views/CircuitDetailView.vue'
 import WeatherDetailView from '@/views/WeatherDetailView.vue'
 import WeatherAboutView from '@/views/WeatherAboutView.vue'
 import RacePlanView from '@/views/RacePlanView.vue'
+import StandingsView from '@/views/StandingsView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 
 const VIEW_MAP = {
@@ -19,6 +21,7 @@ const VIEW_MAP = {
   WeatherDetailView,
   WeatherAboutView,
   RacePlanView,
+  StandingsView,
   NotFoundView,
 }
 
@@ -33,8 +36,24 @@ const views = [
   ['WeatherDetailView', '/city/Seoul', {}],
   ['WeatherAboutView', '/about', {}],
   ['RacePlanView', '/plan', {}],
+  ['StandingsView', '/standings', {}],
   ['NotFoundView', '/nope', {}],
 ]
+
+/**
+ * 검사 대상이 실제 라우트를 빠짐없이 덮는지 먼저 확인한다.
+ *
+ * 화면을 새로 만들고 이 목록에 넣는 걸 잊으면, 테스트는 조용히 통과하면서
+ * 정작 새 화면만 검사되지 않는다. 그런 침묵이 제일 나쁘다.
+ */
+const covered = new Set(views.map(([, path]) => path))
+const uncovered = routes
+  .map((r) => r.path)
+  .filter((p) => !p.includes(':') && !covered.has(p))
+if (uncovered.length) {
+  console.log(`FAIL  검사 목록에 빠진 라우트: ${uncovered.join(', ')}`)
+  process.exit(1)
+}
 
 let failed = 0
 for (const [name, path] of views) {
@@ -43,15 +62,9 @@ for (const [name, path] of views) {
     if (!ViewComp) throw new Error(`VIEW_MAP에 ${name}이(가) 등록되지 않았습니다`)
     const router = createRouter({
       history: createMemoryHistory(),
-      routes: [
-        { path: '/', name: 'weather-home', component: ViewComp },
-        { path: '/f1', name: 'f1-calendar', component: ViewComp },
-        { path: '/f1/:circuitId', name: 'circuit-detail', component: ViewComp },
-        { path: '/city/:city', name: 'weather-detail', component: ViewComp },
-        { path: '/about', name: 'weather-about', component: ViewComp },
-        { path: '/plan', name: 'race-plan', component: ViewComp },
-        { path: '/:pathMatch(.*)*', name: 'not-found', component: ViewComp },
-      ],
+      // 실제 라우트의 경로·이름을 그대로 쓰고 컴포넌트만 검사 대상으로 바꾼다.
+      // 헤더의 RouterLink가 모든 메뉴 이름을 해석할 수 있어야 하기 때문이다.
+      routes: routes.map((r) => ({ path: r.path, name: r.name, component: ViewComp })),
     })
     const app = createSSRApp(App)
     app.use(createPinia())

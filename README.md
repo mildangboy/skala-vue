@@ -126,7 +126,7 @@ F1 일정 API(Jolpica)는 인증이 필요 없습니다.
 
 ### SSR 스모크 테스트
 
-브라우저 없이 6개 View를 서버 렌더링해 런타임 크래시·템플릿 오류를 잡습니다.
+브라우저 없이 전 View를 서버 렌더링해 런타임 크래시·템플릿 오류를 잡습니다.
 CI(GitHub Actions)에서 lint 직후 자동 실행됩니다.
 
 ```
@@ -135,8 +135,18 @@ PASS  F1CalendarView       (8111 chars)
 PASS  CircuitDetailView    (2509 chars)
 PASS  WeatherDetailView    (2079 chars)
 PASS  WeatherAboutView     (4007 chars)
+PASS  RacePlanView
+PASS  StandingsView
 PASS  NotFoundView         (2271 chars)
 ```
+
+검사 목록은 `src/router/routes.js`와 대조해 **빠진 화면이 있으면 먼저 실패**시킵니다.
+화면을 새로 만들고 목록에 넣는 걸 잊으면 테스트가 조용히 통과해버리는데,
+그 침묵이 크래시보다 위험하기 때문입니다.
+
+라우트 정의를 라우터 인스턴스와 분리해 둔 이유도 여기에 있습니다.
+헤더가 메뉴마다 `RouterLink`를 그리는데 이름이 등록되지 않은 라우트를 만나면
+해석 단계에서 터지므로, 테스트 라우터도 실제와 같은 이름을 갖고 있어야 합니다.
 
 ---
 

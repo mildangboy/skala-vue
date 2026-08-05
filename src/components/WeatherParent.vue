@@ -120,7 +120,7 @@ const handleLocate = async () => {
 // ElMessageBox로 삭제 전 확인 (교재 Feedback 컴포넌트 활용)
 const handleRemove = async (city) => {
   try {
-    await ElMessageBox.confirm(`'${city}' 카드를 대시보드에서 제거할까요?`, '카드 삭제', {
+    await ElMessageBox.confirm(`'${city}' 날씨 정보를 대시보드에서 제거할까요?`, '카드 삭제', {
       confirmButtonText: '삭제',
       cancelButtonText: '취소',
       type: 'warning',

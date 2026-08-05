@@ -123,7 +123,7 @@ const appliedFactors = computed(() => breakdown.value?.factors.filter((f) => f.d
           <el-table-column prop="ideal" label="이상 범위" width="130" />
           <el-table-column prop="penalty" label="감점 규칙" min-width="180" />
           <el-table-column prop="max" label="최대" width="70" align="center">
-            <template #default="{ row }">
+            <template #default="{ row = {} } = {}">
               <span class="mono-num">−{{ row.max }}</span>
             </template>
           </el-table-column>

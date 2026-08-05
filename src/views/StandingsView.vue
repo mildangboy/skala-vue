@@ -133,15 +133,21 @@ watch(tab, load)
 
       <el-skeleton v-if="table.loading && !rows.length" :rows="6" animated />
 
+      <!--
+        슬롯 인자를 `{ row = {} } = {}`로 받는 이유:
+        Element Plus는 컬럼 구성을 파악하려고 렌더 전에 각 슬롯을 인자 없이 한 번 부른다.
+        `{ row }`로 바로 분해하면 그 호출에서 터진다(클라이언트에서는 오류가 삼켜지지만
+        SSR에서는 그대로 드러난다). 기본값을 주면 빈 셀을 그리고 조용히 지나간다.
+      -->
       <el-table v-else :data="rows" class="standings-table" stripe>
         <el-table-column label="#" width="56" align="center">
-          <template #default="{ row }">
+          <template #default="{ row = {} } = {}">
             <span class="standings-pos mono-num">{{ row.position }}</span>
           </template>
         </el-table-column>
 
         <el-table-column :label="isDriver ? '드라이버' : '팀'" min-width="180">
-          <template #default="{ row }">
+          <template #default="{ row = {} } = {}">
             <div class="standings-name">
               <span class="standings-bar" :style="{ background: row.color }" />
               <div>
@@ -162,21 +168,21 @@ watch(tab, load)
         />
 
         <el-table-column label="포인트" width="92" align="right" sortable :sort-by="'points'">
-          <template #default="{ row }">
+          <template #default="{ row = {} } = {}">
             <strong class="mono-num">{{ row.points }}</strong>
           </template>
         </el-table-column>
 
         <el-table-column label="승" width="66" align="right" sortable :sort-by="'wins'">
-          <template #default="{ row }">
+          <template #default="{ row = {} } = {}">
             <span class="mono-num">{{ row.wins }}</span>
           </template>
         </el-table-column>
 
         <el-table-column :label="`최근 ${FORM_RACES}경기`" width="108" align="center">
-          <template #default="{ row }">
+          <template #default="{ row = {} } = {}">
             <PointsSparkline
-              v-if="row.form.length"
+              v-if="row.form?.length"
               :values="row.form"
               :max="formMax"
               :color="row.color"

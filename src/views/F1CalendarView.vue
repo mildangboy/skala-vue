@@ -148,17 +148,17 @@ const tableRows = computed(() =>
         <el-table-column prop="circuit" label="서킷" min-width="190" show-overflow-tooltip />
         <el-table-column prop="dateLabel" label="일자" width="100" />
         <el-table-column prop="tempValue" label="현재 기온" width="120" sortable align="center">
-          <template #default="{ row }">
+          <template #default="{ row = {} } = {}">
             <span class="calendar-view__temp">{{ row.emoji }} {{ row.tempLabel }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="humidity" label="습도" width="90" sortable align="center">
-          <template #default="{ row }">{{
+          <template #default="{ row = {} } = {}">{{
             row.humidity != null ? row.humidity + '%' : '—'
           }}</template>
         </el-table-column>
         <el-table-column label="스프린트" width="90" align="center">
-          <template #default="{ row }">
+          <template #default="{ row = {} } = {}">
             <el-tag v-if="row.sprint" size="small" type="success" effect="plain">SPRINT</el-tag>
             <span v-else class="calendar-view__dash">—</span>
           </template>
