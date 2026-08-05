@@ -18,6 +18,8 @@ const store = useStandingsStore()
 
 const tab = ref('driver')
 const FORM_RACES = 5
+// 차트에 그릴 상위 몇 명(팀)인지. 선이 많아질수록 서로 겹쳐 읽기 어려워진다.
+const CHART_TOP = 5
 
 const table = computed(() => store.table[tab.value])
 const progress = computed(() => store.progress[tab.value])
@@ -51,11 +53,11 @@ const rows = computed(() =>
   })),
 )
 
-/** 차트는 상위 10명(팀)만 */
+/** 차트는 상위 CHART_TOP만 (순위표는 전원 그대로 보여준다) */
 const chartSeries = computed(() => {
   const order = new Map(table.value.rows.map((r, i) => [r.id, i]))
   return progress.value.series
-    .filter((s) => (order.get(s.id) ?? 99) < 10)
+    .filter((s) => (order.get(s.id) ?? 99) < CHART_TOP)
     .sort((a, b) => (order.get(a.id) ?? 99) - (order.get(b.id) ?? 99))
 })
 
@@ -102,7 +104,7 @@ watch(tab, load)
       <template #header>
         <span>{{ isDriver ? '드라이버 포인트 추이' : '컨스트럭터 포인트 추이' }}</span>
         <span class="standings-note">
-          {{ isDriver ? '상위 10명' : '상위 10팀' }} · 누적
+          상위 {{ CHART_TOP }}{{ isDriver ? '명' : '팀' }} · 누적
           <template v-if="isDriver"> · 팀메이트는 파선</template>
         </span>
       </template>
