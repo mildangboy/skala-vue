@@ -83,13 +83,19 @@ watch(
       </button>
     </div>
 
-    <!-- 모바일 메뉴 서랍 -->
+    <!-- 모바일 메뉴 서랍
+         append-to-body가 필요한 이유:
+         헤더에 backdrop-filter가 걸려 있는데, 이 속성은 자기 자신을
+         position:fixed 자손의 포함 블록으로 만든다. 그러면 서랍 오버레이가
+         화면 전체가 아니라 헤더 높이(58px)에 갇혀 제목 줄만 보인다.
+         body로 내보내면 헤더 바깥이라 원래대로 화면 전체를 쓴다. -->
     <el-drawer
       id="mobile-menu"
       v-model="drawerOpen"
       direction="rtl"
       size="270px"
       :with-header="false"
+      append-to-body
       class="mobile-menu"
     >
       <div class="mobile-menu__head">
