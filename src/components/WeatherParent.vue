@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import SearchBar from './SearchBar.vue'
@@ -11,13 +11,19 @@ import OfflineBanner from './OfflineBanner.vue'
 import { useConfigStore } from '@/stores/configStore'
 import { useWeatherStore } from '@/stores/weatherStore'
 import { useOnlineStatus } from '@/utils/network'
+import { useDemoSource } from '@/composables/useDemoSource'
+import DemoDataNotice from './DemoDataNotice.vue'
 import { cityMatchesQuery } from '@/data/cityIndex'
 
+const route = useRoute()
 const router = useRouter()
 const config = useConfigStore()
 const weather = useWeatherStore()
-const { cards, myLocation, loading, locating, error, favorites, usingCache, history } =
+const { cards, myLocation, loading, locating, error, favorites, usingCache, history, demoReason } =
   storeToRefs(weather)
+
+// 화면(WeatherHomeView)이 심어둔 출처 컨텍스트. 여기서 값을 채워 넣는다.
+const demoSource = useDemoSource()
 const { isOnline } = useOnlineStatus()
 
 /* ── 반응형 상태 ───────────────────────────────────────────────
@@ -47,6 +53,10 @@ const handleEscape = (e) => {
 }
 
 onMounted(() => {
+  // 주소창에 ?q=가 있으면 그 검색어로 시작한다 (링크 공유·새로고침 복원)
+  const initial = route.query.q
+  if (typeof initial === 'string' && initial.trim()) searchQuery.value = initial
+
   load()
   window.addEventListener('skala:reload-weather', load)
   document.addEventListener('click', handleOutsideClick)
@@ -61,6 +71,26 @@ onBeforeUnmount(() => {
 
 // 단위가 바뀌면 대시보드를 다시 조회
 watch(() => config.unit, load)
+
+/**
+ * 검색어를 주소창 쿼리에 남긴다.
+ *
+ * push가 아니라 replace를 쓴다. 한 글자 칠 때마다 히스토리가 쌓이면
+ * 뒤로가기를 스무 번 눌러야 이전 화면으로 나갈 수 있다.
+ * 검색어는 '어디까지 왔는지'가 아니라 '지금 화면이 어떤 상태인지'에 가깝다.
+ */
+watch(searchQuery, (value) => {
+  const q = value.trim()
+  if (q === (route.query.q ?? '')) return
+  router.replace({ query: { ...route.query, q: q || undefined } })
+})
+
+/**
+ * 스토어가 데모로 물러났는지를 화면 컨텍스트에 알린다.
+ * 이 값을 실제로 읽는 곳은 두 단계 아래의 카드 헤더라, 여기서 컨텍스트에 넣어두면
+ * 중간 컴포넌트들이 값을 받아 넘기지 않아도 된다.
+ */
+watchEffect(() => demoSource.mark('weather', demoReason.value))
 
 // 내 위치 카드를 목록 맨 앞에 붙인다
 const displayCards = computed(() =>
@@ -202,9 +232,13 @@ const clearSearch = () => (searchQuery.value = '')
 
     <!-- 날씨 현황: 같은 카드 프레임을 슬롯으로 재사용 -->
     <BaseDashboardCard tone="bare" :padded="false">
-      <template #header>
+      <!-- 스코프드 슬롯: 카드가 판정한 출처(demo)를 헤더가 받아 표시 방식을 정한다 -->
+      <template #header="{ demo }">
         <span>지역별 날씨 현황</span>
-        <span class="weather-parent__count">{{ filteredCards.length }}개 도시</span>
+        <span class="weather-parent__count">
+          <DemoDataNotice v-if="demo" variant="pill" :demo="true" />
+          {{ filteredCards.length }}개 도시
+        </span>
       </template>
       <div class="weather-parent__grid">
         <template v-if="loading && !displayCards.length">

@@ -1,6 +1,7 @@
 import { computed, reactive, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { fetchPointsProgress, fetchStandings } from '@/api/standings'
+import { mockPointsProgress, mockStandings } from '@/api/mock'
 
 /**
  * 챔피언십 순위 스토어.
@@ -12,8 +13,16 @@ import { fetchPointsProgress, fetchStandings } from '@/api/standings'
  * 드라이버/컨스트럭터는 화면에서 탭으로 갈리므로 열어본 쪽만 받아온다.
  */
 export const useStandingsStore = defineStore('standings', () => {
-  const empty = () => ({ round: 0, rows: [], loading: false, error: '' })
-  const emptyProgress = () => ({ rounds: [], series: [], loading: false, error: '', missing: 0 })
+  // demo: 데모 데이터로 물러난 사유. 빈 문자열이면 실시간 응답이다.
+  const empty = () => ({ round: 0, rows: [], loading: false, error: '', demo: '' })
+  const emptyProgress = () => ({
+    rounds: [],
+    series: [],
+    loading: false,
+    error: '',
+    missing: 0,
+    demo: '',
+  })
 
   const table = reactive({ driver: empty(), constructor: empty() })
   const progress = reactive({ driver: emptyProgress(), constructor: emptyProgress() })
@@ -33,9 +42,16 @@ export const useStandingsStore = defineStore('standings', () => {
       const { round, rows } = await fetchStandings(type)
       slot.round = round
       slot.rows = rows
+      slot.demo = ''
       lastUpdated.value = new Date()
-    } catch {
-      slot.error = '순위를 불러오지 못했습니다.'
+    } catch (err) {
+      // Jolpica는 짧은 시간에 요청이 몰리면 429로 막는다. 표가 통째로 비면
+      // 화면이 무엇을 보여주려던 것인지도 알 수 없으므로 데모로 채운다.
+      const demo = mockStandings(type)
+      slot.round = demo.round
+      slot.rows = demo.rows
+      slot.demo = err?.message ?? '실시간 순위 조회에 실패했습니다'
+      slot.error = ''
     } finally {
       slot.loading = false
     }
@@ -54,8 +70,14 @@ export const useStandingsStore = defineStore('standings', () => {
       slot.rounds = rounds
       slot.series = series
       slot.missing = missing ?? 0
-    } catch {
-      slot.error = '포인트 추이를 불러오지 못했습니다.'
+      slot.demo = ''
+    } catch (err) {
+      const demo = mockPointsProgress(type)
+      slot.rounds = demo.rounds
+      slot.series = demo.series
+      slot.missing = 0
+      slot.demo = err?.message ?? '실시간 포인트 추이 조회에 실패했습니다'
+      slot.error = ''
     } finally {
       slot.loading = false
     }
@@ -75,5 +97,18 @@ export const useStandingsStore = defineStore('standings', () => {
   /** 시즌이 몇 라운드까지 진행됐는지 (둘 중 아는 쪽) */
   const currentRound = computed(() => table.driver.round || table.constructor.round || 0)
 
-  return { table, progress, lastUpdated, currentRound, load, loadTable, loadProgress, refresh }
+  /** 표와 추이 중 하나라도 데모면 그 사유 (화면이 안내에 쓴다) */
+  const demoReasonOf = (type) => table[type].demo || progress[type].demo || ''
+
+  return {
+    table,
+    progress,
+    lastUpdated,
+    currentRound,
+    demoReasonOf,
+    load,
+    loadTable,
+    loadProgress,
+    refresh,
+  }
 })

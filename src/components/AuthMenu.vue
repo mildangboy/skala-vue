@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/authStore'
@@ -14,7 +15,23 @@ import { useAuthStore } from '@/stores/authStore'
  * 창 배경을 밝게 두면 구글 버튼이 원래 있어야 할 자리에 놓인 것처럼 보인다.
  */
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const { user, busy, isSignedIn, ready, configured } = storeToRefs(auth)
+
+/**
+ * 로그인 성공 후 원래 가려던 화면으로 돌려보낸다.
+ *
+ * 전역 가드가 막을 때 to.fullPath를 redirect 쿼리에 실어 보내둔다.
+ * 그 값을 그대로 쓰지 않고 앱 내부 경로인지 먼저 확인한다 —
+ * 주소창은 누구나 고칠 수 있어서, //evil.com 같은 값이 들어오면
+ * 로그인 직후 외부 사이트로 튕겨나가는 통로가 된다(오픈 리다이렉트).
+ */
+const goBackToIntended = () => {
+  const target = route.query.redirect
+  if (typeof target !== 'string' || !target.startsWith('/') || target.startsWith('//')) return
+  router.replace(target)
+}
 
 const dialogOpen = ref(false)
 const gbtn = ref(null)
@@ -34,6 +51,7 @@ const mountButton = async () => {
     await auth.mountGoogleButton(box)
     dialogOpen.value = false
     ElMessage.success({ message: '로그인되었습니다.', duration: 1800 })
+    goBackToIntended()
   } catch (err) {
     if (err?.message?.includes('취소')) return // 창을 닫은 경우
     fallback.value = true
@@ -51,6 +69,7 @@ const signInFallback = async () => {
     await auth.login()
     dialogOpen.value = false
     ElMessage.success({ message: '로그인되었습니다.', duration: 1800 })
+    goBackToIntended()
   } catch (err) {
     ElMessage.error(err.message)
   }

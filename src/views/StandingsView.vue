@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, watchEffect } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useStandingsStore } from '@/stores/standingsStore'
 import { perRoundPoints } from '@/api/standings'
 import { colorOf } from '@/data/teamColors'
@@ -7,6 +8,8 @@ import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
 import PointsProgressChart from '@/components/PointsProgressChart.vue'
 import PointsSparkline from '@/components/PointsSparkline.vue'
 import RefreshButton from '@/components/RefreshButton.vue'
+import DemoDataNotice from '@/components/DemoDataNotice.vue'
+import { provideDemoSource } from '@/composables/useDemoSource'
 
 /**
  * 챔피언십 순위.
@@ -15,8 +18,26 @@ import RefreshButton from '@/components/RefreshButton.vue'
  * 되는데, 대개는 한쪽만 보고 나간다.
  */
 const store = useStandingsStore()
+const route = useRoute()
+const router = useRouter()
 
-const tab = ref('driver')
+// 이 화면의 데이터 출처를 하위 카드들이 읽을 수 있게 심어둔다
+const demoSource = provideDemoSource()
+
+const TABS = ['driver', 'constructor']
+
+/**
+ * 어느 탭을 보고 있는지 주소창에 남긴다.
+ *
+ * "컨스트럭터 순위 봐봐"라며 링크를 보냈을 때 상대가 드라이버 탭을 보게 되면
+ * 링크가 가리키는 것과 실제로 열리는 것이 어긋난다. 탭은 화면 상태이므로
+ * 쿼리 스트링에 두는 편이 맞다.
+ *
+ * 모르는 값이 들어오면 판정하지 않고 기본값으로 돌아간다 — 주소창은 누구나
+ * 손으로 고칠 수 있는 입력이라 그대로 믿으면 안 된다.
+ */
+const initialTab = TABS.includes(route.query.tab) ? route.query.tab : 'driver'
+const tab = ref(initialTab)
 const FORM_RACES = 5
 // 차트에 그릴 상위 몇 명(팀)인지. 선이 많아질수록 서로 겹쳐 읽기 어려워진다.
 const CHART_TOP = 5
@@ -65,7 +86,15 @@ const isDriver = computed(() => tab.value === 'driver')
 
 const load = () => store.load(tab.value)
 onMounted(load)
-watch(tab, load)
+
+watch(tab, (value) => {
+  load()
+  // 탭 전환은 화면 상태 변화라 히스토리를 쌓지 않는다 (뒤로가기 한 번에 나가야 한다)
+  if (value !== route.query.tab) router.replace({ query: { ...route.query, tab: value } })
+})
+
+// 표와 추이 중 하나라도 데모면 컨텍스트에 알린다
+watchEffect(() => demoSource.mark('standings', store.demoReasonOf(tab.value)))
 </script>
 
 <template>
@@ -99,6 +128,9 @@ watch(tab, load)
       class="standings-alert"
     />
 
+    <!-- 데모로 물러났을 때만 나타난다 -->
+    <DemoDataNotice variant="line" />
+
     <!-- 포인트 추이 -->
     <BaseDashboardCard>
       <template #header>
@@ -127,8 +159,10 @@ watch(tab, load)
 
     <!-- 순위표 -->
     <BaseDashboardCard>
-      <template #header>
+      <!-- 스코프드 슬롯: 카드가 판정한 출처를 헤더가 받아 쓴다 -->
+      <template #header="{ demo }">
         <span>{{ isDriver ? '드라이버 순위' : '컨스트럭터 순위' }}</span>
+        <DemoDataNotice v-if="demo" variant="pill" :demo="true" />
       </template>
 
       <el-skeleton v-if="table.loading && !rows.length" :rows="6" animated />

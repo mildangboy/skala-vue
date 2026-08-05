@@ -2,9 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { useConfigStore } from '@/stores/configStore'
 import { FORECAST_DAYS, describeWmo, fetchRaceWindow, summarize } from '@/api/raceWeather'
+import { mockRaceWindow } from '@/api/mock'
 import { timezoneOf } from '@/data/circuitTimezones'
 import { utcOffsetLabel, zoneOffsetMinutes } from '@/utils/format'
 import BaseDashboardCard from './BaseDashboardCard.vue'
+import DemoDataNotice from './DemoDataNotice.vue'
 import LocalTime from './LocalTime.vue'
 
 /**
@@ -23,6 +25,8 @@ const config = useConfigStore()
 const state = ref('idle') // idle | loading | ok | out-of-range | error
 const hours = ref([])
 const daysAway = ref(0)
+// 데모로 물러난 사유. 빈 문자열이면 Open-Meteo 실측이다.
+const demoReason = ref('')
 
 const load = async () => {
   const race = props.race
@@ -38,6 +42,7 @@ const load = async () => {
       unit: config.unit,
     })
     daysAway.value = res.daysAway
+    demoReason.value = ''
     if (res.status === 'ok') {
       hours.value = res.hours
       state.value = 'ok'
@@ -45,8 +50,22 @@ const load = async () => {
       hours.value = []
       state.value = 'out-of-range'
     }
-  } catch {
-    state.value = 'error'
+  } catch (err) {
+    /**
+     * 예보를 못 받으면 예전에는 안내만 남기고 칸을 통째로 비웠다.
+     * 이 카드가 이 화면의 존재 이유에 가까운데(경기 중에 비가 오는가) 그 자리가
+     * 비면 화면이 무엇을 하려던 것인지 알 수 없다. 그래서 데모로 채우고,
+     * 실측이 아니라는 사실을 카드 머리와 아래 문구에 함께 밝힌다.
+     */
+    const demo = mockRaceWindow({ startAt: at, seedKey: race.circuitId ?? 'race' })
+    if (demo) {
+      hours.value = demo.hours
+      daysAway.value = 0
+      demoReason.value = err?.message ?? '실시간 예보 조회에 실패했습니다'
+      state.value = 'ok'
+    } else {
+      state.value = 'error'
+    }
   }
 }
 
@@ -96,10 +115,17 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
 </script>
 
 <template>
-  <BaseDashboardCard>
-    <template #header>
+  <!--
+    source를 직접 넘기는 이유: 이 카드의 출처는 화면 전체와 다를 수 있다.
+    서킷 현재 날씨는 실시간인데 시간대 예보만 실패하는 경우가 실제로 있다.
+  -->
+  <BaseDashboardCard :source="demoReason ? 'demo' : ''">
+    <template #header="{ demo }">
       <span>레이스 시간대 예보</span>
-      <span class="rw__src">Open-Meteo · 1시간 간격</span>
+      <span class="rw__src">
+        <DemoDataNotice v-if="demo" variant="pill" :demo="true" />
+        <template v-else>Open-Meteo · 1시간 간격</template>
+      </span>
     </template>
 
     <el-skeleton v-if="state === 'loading'" :rows="3" animated />
@@ -163,6 +189,11 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
           <span class="rw__wind mono-num">{{ Math.round(h.wind) }} {{ windUnit }}</span>
         </li>
       </ul>
+
+      <p v-if="demoReason" class="rw__note rw__note--demo">
+        실시간 API에 문제가 있어 Mock API의 데모 데이터를 표시하고 있습니다. 실제 예보가 아닙니다.
+        (사유: {{ demoReason }})
+      </p>
 
       <p class="rw__note">
         <template v-if="legend"
@@ -318,6 +349,15 @@ const waitDays = computed(() => Math.ceil(daysAway.value - FORECAST_DAYS))
   font-size: 11px;
   line-height: 1.6;
   color: var(--text-muted);
+}
+.rw__note--demo {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(230, 162, 60, 0.12);
+  border: 1px solid rgba(230, 162, 60, 0.34);
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 @media (max-width: 560px) {

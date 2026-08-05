@@ -62,9 +62,18 @@ for (const [name, path] of views) {
     if (!ViewComp) throw new Error(`VIEW_MAP에 ${name}이(가) 등록되지 않았습니다`)
     const router = createRouter({
       history: createMemoryHistory(),
-      // 실제 라우트의 경로·이름을 그대로 쓰고 컴포넌트만 검사 대상으로 바꾼다.
+      // 실제 라우트의 경로·이름·meta를 그대로 쓰고 컴포넌트만 검사 대상으로 바꾼다.
       // 헤더의 RouterLink가 모든 메뉴 이름을 해석할 수 있어야 하기 때문이다.
-      routes: routes.map((r) => ({ path: r.path, name: r.name, component: ViewComp })),
+      //
+      // meta도 함께 넘긴다. 예전에는 빼먹었는데, 그러면 meta를 읽는 코드
+      // (문서 타이틀 동기화, requiresAuth 전역 가드)가 테스트에서 한 번도
+      // 실행되지 않는다. 검사가 실제 앱과 다른 조건에서 도는 셈이다.
+      routes: routes.map((r) => ({
+        path: r.path,
+        name: r.name,
+        meta: r.meta,
+        component: ViewComp,
+      })),
     })
     const app = createSSRApp(App)
     app.use(createPinia())

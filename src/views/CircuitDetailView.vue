@@ -7,6 +7,8 @@ import { formatTemp, formatHour, formatWeekday, formatDate } from '@/utils/forma
 import { iconEmoji } from '@/utils/weatherIcons'
 import { raceStartDate } from '@/data/f1Calendar2026'
 import { timezoneOf } from '@/data/circuitTimezones'
+import { mockCurrentWeather, mockForecast } from '@/api/mock'
+import { provideDemoSource } from '@/composables/useDemoSource'
 import { useConfigStore } from '@/stores/configStore'
 import { useF1Store } from '@/stores/f1Store'
 import BaseDashboardCard from '@/components/BaseDashboardCard.vue'
@@ -18,6 +20,7 @@ import RaceConditionPanel from '@/components/RaceConditionPanel.vue'
 import RaceWindowForecast from '@/components/RaceWindowForecast.vue'
 import RaceInfoDialog from '@/components/RaceInfoDialog.vue'
 import LocalTime from '@/components/LocalTime.vue'
+import DemoDataNotice from '@/components/DemoDataNotice.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +32,10 @@ const forecast = ref(null)
 const loading = ref(false)
 const error = ref('')
 const chartHours = ref(8) // 차트에 표시할 예보 구간 (el-input-number로 조절)
+
+// 이 화면이 보여주는 데이터의 출처를 하위 카드들이 읽을 수 있게 심어둔다.
+// 배지가 놓이는 자리가 카드 헤더 슬롯 안쪽이라 props로는 두세 단계를 거쳐야 한다.
+const demoSource = provideDemoSource()
 
 const race = computed(() => f1.findRace(route.params.circuitId))
 
@@ -76,22 +83,33 @@ const raceDayForecast = computed(() => {
   return forecast.value.daily.find((d) => d.day === target) ?? null
 })
 
+/**
+ * 서킷 날씨 조회.
+ *
+ * 둘 중 하나만 실패해도 나머지는 살린다(allSettled). 예전에는 Promise.all이라
+ * 예보 하나가 넘어지면 이미 받아둔 현재 날씨까지 버려졌다.
+ * 둘 다 실패하면 데모로 채우고, 실측이 아니라는 사실을 화면에 밝힌다.
+ */
 const load = async () => {
   if (!race.value) return
   loading.value = true
   error.value = ''
-  try {
-    const [cur, fc] = await Promise.all([
-      fetchCurrentWeatherByCoords(race.value.lat, race.value.lon, config.unit),
-      fetchForecastByCoords(race.value.lat, race.value.lon, config.unit),
-    ])
-    current.value = cur
-    forecast.value = fc
-  } catch (err) {
-    error.value = err.message
-  } finally {
-    loading.value = false
-  }
+  const label = race.value.circuit || race.value.circuitId
+
+  const [cur, fc] = await Promise.allSettled([
+    fetchCurrentWeatherByCoords(race.value.lat, race.value.lon, config.unit),
+    fetchForecastByCoords(race.value.lat, race.value.lon, config.unit),
+  ])
+
+  const failure = [cur, fc].find((r) => r.status === 'rejected')
+  current.value = cur.status === 'fulfilled' ? cur.value : mockCurrentWeather(label, config.unit)
+  forecast.value = fc.status === 'fulfilled' ? fc.value : mockForecast(label, config.unit)
+
+  demoSource.mark(
+    'circuit-weather',
+    failure ? (failure.reason?.message ?? '실시간 서킷 날씨 조회에 실패했습니다') : '',
+  )
+  loading.value = false
 }
 
 const { refresh, refreshing, lastUpdated, paused } = useAutoRefresh(load)
@@ -120,6 +138,9 @@ watch([() => route.params.circuitId, () => config.unit], load)
     </div>
 
     <el-alert v-if="error" :title="error" type="error" show-icon :closable="false" />
+
+    <!-- 데모로 물러났을 때만 나타난다 (아니면 아무것도 그리지 않는다) -->
+    <DemoDataNotice variant="line" />
 
     <SkeletonCard v-if="!race && !calendarReady" />
     <el-empty v-else-if="!race" description="해당 서킷을 찾을 수 없습니다">
@@ -186,7 +207,10 @@ watch([() => route.params.circuitId, () => config.unit], load)
 
         <!-- 현재 지표 -->
         <BaseDashboardCard>
-          <template #header><span>현재 서킷 컨디션</span></template>
+          <template #header="{ demo }">
+            <span>현재 서킷 컨디션</span>
+            <DemoDataNotice v-if="demo" variant="pill" :demo="true" />
+          </template>
           <div class="metrics">
             <div class="metrics__item">
               <span>체감</span><strong>{{ formatTemp(current.feelsLike, config.unit) }}</strong>

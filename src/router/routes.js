@@ -65,7 +65,9 @@ export const routes = [
     path: '/plan',
     name: 'race-plan',
     component: () => import('@/views/RacePlanView.vue'),
-    meta: { title: '관전 플랜' },
+    // requiresAuth: 전역 가드가 읽는 표식. 규칙은 가드 한 곳에만 두고,
+    // 라우트는 '이 화면이 로그인을 요구한다'는 사실만 선언한다.
+    meta: { title: '관전 플랜', requiresAuth: true },
   },
   {
     path: '/about',

@@ -8,6 +8,7 @@ import {
 } from '@/api/weather'
 import { getCurrentPosition } from '@/utils/geolocation'
 import { withCache } from '@/utils/cache'
+import { mockCurrentWeather } from '@/api/mock'
 import { resolveCityName, hasHangul } from '@/data/cityIndex'
 
 const FAVORITES_KEY = 'skala-vue:favorites'
@@ -33,6 +34,7 @@ export const useWeatherStore = defineStore('weather', () => {
   const locateStep = ref('') // 파이프라인 진행 단계 표시용
   const error = ref('')
   const usingCache = ref(false) // 오프라인 등으로 캐시 데이터를 보여주는 중인지
+  const demoReason = ref('') // 데모 데이터로 물러난 사유 (빈 문자열이면 실시간)
 
   watch(favorites, (v) => localStorage.setItem(FAVORITES_KEY, JSON.stringify(v)), { deep: true })
   watch(history, (v) => localStorage.setItem(HISTORY_KEY, JSON.stringify(v)), { deep: true })
@@ -67,13 +69,25 @@ export const useWeatherStore = defineStore('weather', () => {
           withCache(`city:${city}:${unit}`, () => fetchCurrentWeatherByCity(city, unit), { force }),
         ),
       )
+      /**
+       * 실패한 도시는 데모 데이터로 채운다.
+       *
+       * withCache가 이미 '실시간 → 만료된 캐시'까지 시도한 뒤라, 여기까지 온 건
+       * 보여줄 실제 값이 정말 하나도 없다는 뜻이다. 예전에는 그 자리에 에러 카드를
+       * 놓았는데, 키가 아직 활성화되지 않은 사람이 처음 열면 화면 전체가 에러였다.
+       * 무엇을 만든 물건인지조차 보이지 않는다.
+       *
+       * 데모라는 사실은 화면에 밝히므로(demoReason → DemoDataNotice) 실측으로
+       * 오해될 여지는 없다.
+       */
+      const failures = results.filter((r) => r.status === 'rejected')
       cards.value = results.map((r, idx) =>
-        r.status === 'fulfilled' ? r.value.data : { city: cities[idx], failed: true },
+        r.status === 'fulfilled' ? r.value.data : mockCurrentWeather(cities[idx], unit),
       )
       usingCache.value = results.some((r) => r.status === 'fulfilled' && r.value.stale)
-      if (results.every((r) => r.status === 'rejected')) {
-        error.value = results[0]?.reason?.message ?? '날씨 정보를 불러오지 못했습니다.'
-      }
+      demoReason.value = failures.length
+        ? (failures[0].reason?.message ?? '실시간 날씨 조회에 실패했습니다')
+        : ''
     } finally {
       loading.value = false
     }
@@ -154,6 +168,7 @@ export const useWeatherStore = defineStore('weather', () => {
     locateStep,
     error,
     usingCache,
+    demoReason,
     isFavorite,
     toggleFavorite,
     removeCard,
