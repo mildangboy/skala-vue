@@ -19,7 +19,27 @@ SK㈜ AX SKALA _Full-stack Engineering · Frontend Framework(Vue.js)_ 과정의 
 - 다음 레이스까지 **초 단위 카운트다운** (1초 갱신)
 - 시즌 캘린더: 다가오는 / 종료된 / 전체 탭 · 그리드 ↔ 정렬 가능한 테이블 뷰 전환
 - 서킷 상세: 레이스 데이 전망, 현재 컨디션, 24시간 기온 차트, 5일 예보
-- 일정 데이터는 **Jolpica-F1 API 우선 조회 → 실패 시 내장 스냅샷 폴백**
+- 그랑프리 정보 모달: 주말 세션 일정(시각 순 정렬), 서킷 제원·레이아웃, 최근 5년 우승자와 최고 랩
+- 일정 데이터는 **Jolpica-F1 API 우선 조회 → 실패 시 내장 스냅샷 폴백**.
+  시즌 중 개최지가 바뀌어도(2026 바레인 GP → 세팡) 라이브 일정을 그대로 따른다
+
+### 🏆 챔피언십 순위 (독자 확장)
+
+- 드라이버 / 컨스트럭터 순위표 — 포인트·승수 정렬, **실제 팀 컬러** 표기
+- **시즌 포인트 누적 추이 차트** (상위 10) — 라운드별 순위를 모아 직접 구성.
+  팀메이트는 같은 색 파선으로 구분하고, 선 끝에 이름을 직접 그려 범례 없이 읽힌다
+- 각 행에 **최근 5경기 획득 포인트 스파크라인** — 누적값의 차분이라 추가 요청 없음
+- 끝난 라운드의 순위는 불변이므로 라운드 단위로 영구 캐시.
+  최초 4초 → 이후 1ms. 표를 먼저 띄우고 추이는 뒤에서 채운다
+
+### 🌧️ 레이스 시간대 예보 (독자 확장)
+
+- 경기 시작 1시간 전 ~ 3시간 후를 **1시간 간격**으로 — 강수확률·기온·바람
+- 경기 중 최대 강수확률로 우천 여부를 한 줄 판정 (평균이 아니라 최대값을 쓰는 이유는
+  두 시간 중 한 시간만 쏟아져도 레이스 결과가 뒤집히기 때문)
+- 이 기능만 **Open-Meteo**(16일·1시간·키 불필요)를 쓴다.
+  OpenWeather 무료 예보는 5일·3시간이라 2주 간격인 레이스를 대부분 놓치고,
+  두 시간짜리 경기가 3시간 칸 하나에 뭉개진다
 
 ### 🌤️ 도시 날씨
 
@@ -48,7 +68,7 @@ SK㈜ AX SKALA _Full-stack Engineering · Frontend Framework(Vue.js)_ 과정의 
 | 프레임워크 | Vue 3 (Composition API, `<script setup>`)                         |
 | 빌드       | Vite 8 · 환경 변수 · 코드 스플리팅                                |
 | 라우팅     | Vue Router (동적 라우트 · 지연 로딩 · **Navigation Guard** · 404) |
-| 상태 관리  | Pinia — `config` / `weather` / `f1` / `theme` 4개 스토어          |
+| 상태 관리  | Pinia — `config` / `weather` / `f1` / `standings` / `plan` / `auth` / `theme` |
 | HTTP       | Axios (요청·응답 인터셉터, 공통 에러 정규화)                      |
 | UI         | Element Plus (Form · Data · Navigation · Feedback 전 카테고리)    |
 | 시각화     | Chart.js (tree-shaking 등록, 테마 연동)                           |
@@ -148,14 +168,19 @@ History 모드 SPA는 이 경로를 앱이 처리해야 하므로, 빌드 시 `i
 
 ```
 src/
-├─ api/           axios 클라이언트 · OpenWeatherMap · Jolpica-F1
+├─ api/           axios 클라이언트 · OpenWeatherMap · Jolpica-F1(공용 재시도/배치)
+│                 standings(순위) · raceWeather(Open-Meteo) · firebase · plans
 ├─ components/    RaceHero · CircuitWeatherCard · WeatherCard · TempChart
+│                 PointsProgressChart · PointsSparkline · RaceWindowForecast
+│                 CircuitOutline · RaceInfoDialog · AuthMenu · PlanForm
 │                 SearchBar · ThemeToggle · UnitToggle · SkeletonCard · OfflineBanner
-├─ data/          F1 2026 캘린더 스냅샷 (22개 GP · 서킷 좌표)
+├─ data/          F1 2026 캘린더 스냅샷 · 서킷 레이아웃(OSM) · 팀 컬러
 ├─ router/        라우트 정의 · Navigation Guard · 타이틀 동기화
-├─ stores/        config(단위) · weather(도시/즐겨찾기) · f1(시즌) · theme(다크모드)
+├─ stores/        config(단위) · weather(도시/즐겨찾기) · f1(시즌) · standings(순위)
+│                 plan(관전 플랜) · auth(로그인) · theme(다크모드)
 ├─ utils/         포맷터 · 아이콘 매핑 · TTL 캐시 · 온라인 감지 · Geolocation
-└─ views/         WeatherHome · WeatherDetail · F1Calendar · CircuitDetail · About · NotFound
+└─ views/         WeatherHome · WeatherDetail · F1Calendar · CircuitDetail
+                  Standings · RacePlan · About · NotFound
 tests/            SSR 스모크 테스트 + 브라우저 API shim
 ```
 
@@ -164,5 +189,7 @@ tests/            SSR 스모크 테스트 + 브라우저 API shim
 ## 크레딧
 
 - 날씨 데이터 — [OpenWeatherMap](https://openweathermap.org/)
-- F1 일정 데이터 — [Jolpica-F1](https://github.com/jolpica/jolpica-f1) (Ergast API 후속)
+- 레이스 시간대 예보 — [Open-Meteo](https://open-meteo.com/) (CC BY 4.0)
+- F1 일정·결과·순위 데이터 — [Jolpica-F1](https://github.com/jolpica/jolpica-f1) (Ergast API 후속)
+- 서킷 레이아웃 — [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors (ODbL 1.0)
 - 본 프로젝트는 학습 목적의 비영리 결과물이며 Mercedes-AMG PETRONAS F1 Team과 무관합니다.

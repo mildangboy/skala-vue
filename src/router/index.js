@@ -46,6 +46,12 @@ const routes = [
     // 그 답을 기다릴 수 없다. 그래서 판정은 데이터를 쥐고 있는 화면 쪽에 맡긴다.
   },
   {
+    path: '/standings',
+    name: 'standings',
+    component: () => import('@/views/StandingsView.vue'),
+    meta: { title: '챔피언십 순위' },
+  },
+  {
     path: '/plan',
     name: 'race-plan',
     component: () => import('@/views/RacePlanView.vue'),

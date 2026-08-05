@@ -14,6 +14,7 @@ import RefreshButton from '@/components/RefreshButton.vue'
 import { useAutoRefresh } from '@/composables/useAutoRefresh'
 import TempChart from '@/components/TempChart.vue'
 import RaceConditionPanel from '@/components/RaceConditionPanel.vue'
+import RaceWindowForecast from '@/components/RaceWindowForecast.vue'
 import RaceInfoDialog from '@/components/RaceInfoDialog.vue'
 
 const route = useRoute()
@@ -35,6 +36,10 @@ const race = computed(() => f1.findRace(route.params.circuitId))
 const calendarReady = ref(false)
 
 const infoOpen = ref(false)
+
+const startAt = computed(() => (race.value ? raceStartDate(race.value) : null))
+// 이미 열린 경기는 '경기 시간대 예보'를 보여줄 이유가 없다
+const isPast = computed(() => Boolean(startAt.value) && startAt.value.getTime() < Date.now())
 
 const raceTimeLabel = computed(() =>
   race.value
@@ -167,6 +172,9 @@ watch([() => route.params.circuitId, () => config.unit], load)
       <template v-else-if="current">
         <!-- 레이스 컨디션 지수 — 산출 로직과 근거 표시는 패널이 캡슐화 -->
         <RaceConditionPanel :weather="current" :unit="config.unit" />
+
+        <!-- 경기 시작 전후 시간대 날씨 (지난 경기에는 의미가 없어 감춘다) -->
+        <RaceWindowForecast v-if="!isPast" :race="race" :start-at="startAt" />
 
         <!-- 레이스 데이 전망 -->
         <BaseDashboardCard v-if="raceDayForecast" tone="accent">

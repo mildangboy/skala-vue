@@ -1,8 +1,6 @@
 import axios from 'axios'
 import { F1_CALENDAR_2026, F1_SEASON } from '@/data/f1Calendar2026'
-
-// Jolpica-F1: Ergast API의 공식 후속 프로젝트 (인증 불필요)
-const JOLPICA_BASE = 'https://api.jolpi.ca/ergast/f1'
+import { JOLPICA_BASE, jolpicaGet } from './jolpica'
 
 /**
  * 서킷 ID -> 한글 GP 명칭.
@@ -66,27 +64,9 @@ export const fetchCircuitHistory = async (circuitId, count = 5) => {
   const latest = F1_SEASON - 1
   const seasons = Array.from({ length: count }, (_, i) => latest - i)
 
-  // Jolpica는 짧은 시간에 몰린 요청을 막는다. 다섯 시즌을 한꺼번에 부르면
-  // 가끔 한둘이 튕겨 그 해만 조용히 빠지므로, 실패하면 잠깐 쉬고 다시 부른다.
-  const getWithRetry = async (url, tries = 3) => {
-    for (let i = 0; i < tries; i += 1) {
-      try {
-        return await axios.get(url, { params: { limit: 100 }, timeout: 7000 })
-      } catch (err) {
-        const status = err?.response?.status
-        // 없는 데이터(404)나 잘못된 요청은 다시 불러도 같다
-        if (status && status !== 429 && status < 500) throw err
-        if (i === tries - 1) throw err
-        await new Promise((r) => setTimeout(r, 400 * (i + 1)))
-      }
-    }
-  }
-
   const settled = await Promise.allSettled(
     seasons.map(async (season) => {
-      const { data } = await getWithRetry(
-        `${JOLPICA_BASE}/${season}/circuits/${circuitId}/results.json`,
-      )
+      const data = await jolpicaGet(`/${season}/circuits/${circuitId}/results.json`)
       const race = data?.MRData?.RaceTable?.Races?.[0]
       if (!race) return null
 
